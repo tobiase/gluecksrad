@@ -145,6 +145,24 @@
   }
   .winner { font-size: clamp(28px,5vw,72px); font-weight: 900; color: var(--gold); margin: 2vh 0; }
 
+  /* Start-Screen */
+  .card.start { max-width: 660px; text-align: left; }
+  .modeRow { display: flex; gap: 1vw; margin-bottom: 2.4vh; }
+  .modeBtn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .3vh;
+    background: linear-gradient(180deg,#3a4a86,#27345f); color: #fff; box-shadow: 0 4px 0 #161f3c; }
+  .modeBtn small { font-weight: 600; opacity: .85; font-size: .62em; }
+  .modeBtn.active { background: linear-gradient(180deg,var(--gold),var(--gold2)); color: #0b1020; box-shadow: 0 4px 0 #8a5e00; }
+  .startPlayers { display: flex; flex-direction: column; gap: 1vh; margin-bottom: 1.4vh; }
+  .prow { display: flex; align-items: center; gap: 1vw; }
+  .prow input[type=text] { flex: 1; margin: 0; text-align: left; text-transform: none;
+    padding: 1vh 1vw; font-size: clamp(15px,1.8vw,22px); }
+  .prow .kid { display: flex; align-items: center; gap: .4vw; color: var(--muted);
+    font-weight: 700; white-space: nowrap; cursor: pointer; font-size: clamp(13px,1.5vw,19px); }
+  .prow .kid input { width: 22px; height: 22px; accent-color: var(--gold2); }
+  .prow .rm { background: #5a2230; color: #fff; box-shadow: 0 3px 0 #2a0f16; padding: .7vh 1.1vw; }
+  .addBtn { width: 100%; margin-bottom: .5vh; }
+  .startHint { color: var(--muted); font-size: clamp(12px,1.3vw,16px); margin-top: 1vh; text-align: center; }
+
   /* Glücksfee */
   .hostess {
     position: fixed; left: 1vw; bottom: 0; width: clamp(120px, 13vw, 210px);
@@ -283,9 +301,37 @@
   </div>
 </div>
 
+<!-- Start-Screen: Spieler & Modus -->
+<div class="overlay" id="startOverlay">
+  <div class="card start">
+    <h2>🎡 Neues Spiel</h2>
+    <div class="modeRow">
+      <button id="modeKids" class="modeBtn">👶 Mit Kind<small>leichte Wörter + Hilfe für Kinder</small></button>
+      <button id="modeAdults" class="modeBtn">🧠 Ohne Kind<small>schwere Wörter</small></button>
+    </div>
+    <div class="startPlayers" id="startPlayers"></div>
+    <button id="addPlayer" class="secondary addBtn">＋ Spieler hinzufügen</button>
+    <div class="startHint">Tipp: Im Modus „Mit Kind" bekommen als 👶 markierte Spieler später Extra-Hilfe.</div>
+    <div class="btnRow" style="justify-content:center;margin-top:2vh">
+      <button id="startGame">Spiel starten ▶</button>
+    </div>
+  </div>
+</div>
+
 <script>
 //// ----- Daten -----
-const PLAYERS = ["Tobi", "Pia", "Xavi"];
+// Konfiguration (Spieler & Modus) – wird vom Start-Screen gesetzt.
+function defaultConfig() {
+  return {
+    kidMode: true,
+    players: [
+      { name: "Tobi", isChild: false },
+      { name: "Pia",  isChild: false },
+      { name: "Xavi", isChild: true },
+    ],
+  };
+}
+let config = defaultConfig();
 // Zwei Pools: LEICHT (Kindermodus, kurz & vertraut für Xavi, 1. Klasse) und SCHWER (Erwachsene).
 const POOLS = {
   easy: [
@@ -376,9 +422,10 @@ const isLetter = c => /[A-ZÄÖÜ]/.test(c);
 //// ----- State -----
 let state;
 function newGame() {
+  kidMode = config.kidMode;
   const deck = shuffle(kidMode ? POOLS.easy : POOLS.hard).slice(0, ROUNDS);
   state = {
-    players: PLAYERS.map(n => ({ name: n, round: 0, total: 0 })),
+    players: config.players.map(p => ({ name: p.name, isChild: p.isChild, round: 0, total: 0 })),
     cur: 0,
     deck, puzzleIdx: 0,
     revealed: new Set(),
@@ -389,7 +436,8 @@ function newGame() {
   };
   loadPuzzle();
   render();
-  hostessSay(`Willkommen ${PLAYERS.join(", ")}! ${PLAYERS[0]} beginnt – dreh das Rad! 🎡`);
+  const names = state.players.map(p => p.name);
+  hostessSay(`Willkommen ${names.join(", ")}! ${names[0]} beginnt – dreh das Rad! 🎡`);
 }
 function curPuzzle() { return state.deck[state.puzzleIdx]; }
 function loadPuzzle() {
@@ -783,7 +831,55 @@ function roundWon(playerIdx) {
   el("endOverlay").classList.add("show");
 }
 
+//// ----- Start-Screen -----
+function showStartScreen() {
+  renderModeBtns();
+  renderStartPlayers();
+  el("startOverlay").classList.add("show");
+}
+function renderModeBtns() {
+  el("modeKids").classList.toggle("active", config.kidMode);
+  el("modeAdults").classList.toggle("active", !config.kidMode);
+}
+function renderStartPlayers() {
+  const c = el("startPlayers"); c.innerHTML = "";
+  config.players.forEach((p, i) => {
+    const row = document.createElement("div"); row.className = "prow";
+    const input = document.createElement("input");
+    input.type = "text"; input.maxLength = 14; input.placeholder = "Name"; input.value = p.name;
+    input.oninput = () => { config.players[i].name = input.value; };
+    const lab = document.createElement("label"); lab.className = "kid";
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = p.isChild;
+    cb.onchange = () => { config.players[i].isChild = cb.checked; };
+    lab.appendChild(cb); lab.append(" 👶 Kind");
+    const rm = document.createElement("button"); rm.className = "rm"; rm.textContent = "✕"; rm.title = "Entfernen";
+    rm.onclick = () => {
+      if (config.players.length <= 1) return;
+      config.players.splice(i, 1); renderStartPlayers();
+    };
+    rm.disabled = config.players.length <= 1;
+    row.append(input, lab, rm);
+    c.appendChild(row);
+  });
+}
+function addPlayer() {
+  if (config.players.length >= 6) return;
+  config.players.push({ name: "", isChild: false });
+  renderStartPlayers();
+}
+function startGame() {
+  // Namen säubern, leere mit Platzhalter füllen
+  config.players.forEach((p, i) => { p.name = (p.name || "").trim() || `Spieler ${i + 1}`; });
+  el("startOverlay").classList.remove("show");
+  Audio.unlock();
+  newGame();
+}
+
 //// ----- Wire up -----
+el("modeKids").onclick = () => { config.kidMode = true; renderModeBtns(); };
+el("modeAdults").onclick = () => { config.kidMode = false; renderModeBtns(); };
+el("addPlayer").onclick = addPlayer;
+el("startGame").onclick = startGame;
 el("spinBtn").onclick = () => { Audio.unlock(); spin(); };
 el("vowelBtn").onclick = buyVowel;
 el("solveBtn").onclick = openSolve;
@@ -793,14 +889,16 @@ el("solveConfirm").onclick = confirmSolve;
 el("solveCancel").onclick = closeSolve;
 el("solveInput").addEventListener("keydown", e => { if (e.key === "Enter") confirmSolve(); });
 document.addEventListener("keydown", e => {
+  if (!state) return;
   if (el("solveOverlay").classList.contains("show")) return;
+  if (el("startOverlay").classList.contains("show") || el("endOverlay").classList.contains("show")) return;
   const ch = e.key.toUpperCase();
   if (state.spinValue != null && /^[BCDFGHJKLMNPQRSTVWXYZ]$/.test(ch)) guessConsonant(ch);
   else if (e.key === " ") { e.preventDefault(); if (!el("spinBtn").disabled) spin(); }
 });
 
-newGame();
 drawWheel(0);
+showStartScreen();
 </script>
 </body>
 </html>
