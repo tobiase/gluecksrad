@@ -111,6 +111,9 @@
 
   .controls { display: flex; flex-direction: column; gap: 1vh; align-items: center; width: 100%; }
   .btnRow { display: flex; gap: .8vw; flex-wrap: wrap; justify-content: center; }
+  .tipBtn { display: none; background: linear-gradient(180deg,#5ad17a,#2fa955); color: #06240f; box-shadow: 0 4px 0 #1d6b36; }
+  .tipBtn.show { display: inline-block; animation: tipPulse 1.6s ease-in-out infinite; }
+  @keyframes tipPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
   button {
     font-family: inherit; font-weight: 800; cursor: pointer; color: #0b1020;
     border: none; border-radius: 12px; padding: 1.1vh 1.6vw;
@@ -246,6 +249,7 @@
           <button id="spinBtn">🎡 Drehen</button>
           <button id="vowelBtn" class="secondary">🔤 Vokal kaufen (250)</button>
           <button id="solveBtn" class="secondary">💡 Lösen</button>
+          <button id="tipBtn" class="tipBtn">🧒 Tipp</button>
         </div>
         <div class="keys" id="keys"></div>
         <div class="hint" id="hint"></div>
@@ -455,6 +459,7 @@ function newGame() {
     spinValue: null,    // pending consonant value after a spin
     spinning: false,
     rotation: 0,
+    helpUsed: false,    // Kinder-Tipp pro Zug
   };
   loadPuzzle();
   render();
@@ -468,7 +473,7 @@ function loadPuzzle() {
   state.spinValue = null;
   state.players.forEach(p => p.round = 0);
   state.cur = 0;
-  // auto-reveal spaces & punctuation
+  state.helpUsed = false;
 }
 
 //// ----- Rendering -----
@@ -622,9 +627,37 @@ function updateControls() {
   el("spinBtn").disabled = state.spinning || state.spinValue != null;
   el("vowelBtn").disabled = state.spinning || state.spinValue != null || !canBuyVowel();
   el("solveBtn").disabled = state.spinning;
+  const showTip = isChildTurn() && !state.helpUsed && !state.spinning;
+  el("tipBtn").classList.toggle("show", showTip);
   el("hint").textContent = state.spinValue != null
     ? `Du hast ${state.spinValue} gedreht — wähle einen Konsonanten!`
     : "Drehen → Konsonant raten · oder Vokal kaufen · oder Lösen";
+}
+function isChildTurn() {
+  return kidMode && state.players[state.cur] && state.players[state.cur].isChild;
+}
+function childHint() {
+  const pz = curPuzzle(), name = state.players[state.cur].name;
+  return pick([
+    `Tipp: Das Wort gehört zu „${pz.cat}". Du schaffst das! 💪`,
+    `Schau genau hin – Thema ist „${pz.cat}". 🔎`,
+    `${name}, wenn du Hilfe brauchst: drück auf 🧒 Tipp!`,
+  ]);
+}
+function giveTip() {
+  if (!isChildTurn() || state.helpUsed || state.spinning) return;
+  const text = curPuzzle().text;
+  const hidden = [...new Set([...text].filter(c => isLetter(c) && !state.revealed.has(c)))];
+  if (!hidden.length) return;
+  const L = pick(hidden);
+  state.revealed.add(L);
+  state.guessed.add(L);     // auf der Tastatur als benutzt markieren
+  state.helpUsed = true;
+  setStatus(`🎁 Geschenkt: ein „${L}"! Mach weiter.`, "good");
+  hostessSay(`Hier, ein „${L}" für dich! ✨`, "cheer");
+  Audio.sfx.vowel();
+  if (allRevealed()) return solvedByReveal();
+  render();
 }
 function canBuyVowel() {
   if (state.players[state.cur].round < 250) return false;
@@ -819,9 +852,11 @@ function confirmSolve() {
 //// ----- Turn / round flow -----
 function nextPlayer() {
   state.spinValue = null;
+  state.helpUsed = false;
   state.cur = (state.cur + 1) % state.players.length;
-  setStatus(`<b>${state.players[state.cur].name}</b> ist dran — Drehen!`, "info");
-  hostessSay(`${state.players[state.cur].name}, du bist dran! 🎡`);
+  const name = state.players[state.cur].name;
+  setStatus(`<b>${name}</b> ist dran — Drehen!`, "info");
+  hostessSay(isChildTurn() ? childHint() : `${name}, du bist dran! 🎡`);
   renderKeys(); render();
 }
 
@@ -939,7 +974,7 @@ function persist() {
       players: state.players, cur: state.cur, deck: state.deck, puzzleIdx: state.puzzleIdx,
       revealed: [...state.revealed], guessed: [...state.guessed],
       spinValue: state.spinValue, rotation: state.rotation, kidMode,
-      pending: state.pending || null,
+      pending: state.pending || null, helpUsed: !!state.helpUsed,
     }));
   } catch (e) {}
 }
@@ -962,7 +997,7 @@ function restoreState(s) {
     players: s.players, cur: s.cur, deck: s.deck, puzzleIdx: s.puzzleIdx,
     revealed: new Set(s.revealed), guessed: new Set(s.guessed),
     spinValue: s.spinValue, spinning: false, rotation: s.rotation || 0,
-    pending: s.pending || null,
+    pending: s.pending || null, helpUsed: !!s.helpUsed,
   };
   drawWheel(state.rotation);
   render();
@@ -991,6 +1026,7 @@ el("startGame").onclick = startGame;
 el("spinBtn").onclick = () => { Audio.unlock(); spin(); };
 el("vowelBtn").onclick = buyVowel;
 el("solveBtn").onclick = openSolve;
+el("tipBtn").onclick = giveTip;
 el("sfxBtn").onclick = () => { const on = Audio.toggleSfx(); el("sfxBtn").classList.toggle("off", !on); el("sfxBtn").textContent = on ? "🔊 Sound" : "🔇 Sound"; };
 el("musicBtn").onclick = () => { const on = Audio.toggleMusic(); el("musicBtn").classList.toggle("off", !on); el("musicBtn").textContent = on ? "🎵 Musik" : "🎵 Musik aus"; };
 el("menuBtn").onclick = (e) => { e.stopPropagation(); toggleMenu(); };

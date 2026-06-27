@@ -21,7 +21,7 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 6. [x] **Einstellungs-Menü:** kleines, unauffälliges Zahnrad-Symbol, hinter dem Reset / Neues Spiel / Jetzt beenden verschwinden – stört das Spielgefühl nicht. *(Zahnrad-Menü mit Neues Spiel/Reset gebaut; „Jetzt beenden" kommt mit #5.)*
 
 ### P2 – wichtig, etwas mehr Aufwand
-7. [ ] **Kinder-Hilfe:** Im Kindermodus bekommen als „Kind" markierte Spieler extra Hilfe – Tipp und/oder geschenkter Buchstabe an ihrem Zug.
+7. [x] **Kinder-Hilfe:** Im Kindermodus bekommen als „Kind" markierte Spieler extra Hilfe – Tipp und/oder geschenkter Buchstabe an ihrem Zug.
 8. [ ] **Sound-Ducking:** Hintergrundmusik wird leiser, während ein Geräusch spielt.
 
 ### P3 – nett, aber Risiko / zuletzt
