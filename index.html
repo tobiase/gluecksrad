@@ -215,6 +215,67 @@
   .hostess.sad .armR { animation: none; transform: rotate(6deg); }
   .hostess.sad #mouth { d: path("M96 146 Q110 134 124 146"); }
   .hostess.cheer #mouth { d: path("M92 136 Q110 158 128 136"); }
+
+  /* ===== Mobil / schmale Displays ===== */
+  @media (max-width: 760px) {
+    html, body { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
+    #app { height: auto; min-height: 100dvh; padding: 10px 10px 92px; gap: 10px; }
+
+    header { flex-wrap: wrap; justify-content: center; gap: 6px; }
+    h1 { width: 100%; text-align: center; font-size: 30px; }
+    .audioCtrl { order: 2; }
+    .category { width: 100%; text-align: center; font-size: 14px; letter-spacing: 2px; }
+
+    main { display: flex; flex-direction: column; gap: 12px; }
+    .left, .right { width: 100%; min-height: 0; }
+
+    #board { flex: none; gap: 8px; }
+    .row { gap: 4px; }
+    .tile { width: 30px; height: 40px; font-size: 22px; border-radius: 6px; }
+    .tile.empty { width: 10px !important; }
+
+    .wheelWrap { width: 66vw; max-width: 280px; }
+    .status { font-size: 18px; min-height: 0; }
+    .btnRow { gap: 8px; }
+    button { padding: 11px 15px; font-size: 16px; }
+    .key { width: 30px; height: 36px; font-size: 16px; }
+    .keys { gap: 5px; max-width: 100%; }
+    .hint { font-size: 13px; }
+    .tipBtn.show { display: inline-block; }
+
+    /* Glücksfee klein in die Ecke, Taps gehen durch (pointer-events:none ist gesetzt) */
+    .hostess { width: 64px; left: 4px; bottom: 2px; z-index: 8; }
+    .nametag { font-size: 9px; margin-top: 1px; }
+    /* Sprechblase neben die Fee (nach rechts), damit sie die Tasten nicht verdeckt */
+    .bubble { font-size: 12px; min-width: 0; width: max-content; max-width: 60vw; left: 70px; bottom: 8px; padding: 7px 9px; }
+    .bubble::after { display: none; }
+
+    /* Spielerleiste: horizontal scrollbar, frei neben der Fee */
+    .players { padding: 4px 0 4px 80px; gap: 6px; justify-content: flex-start; overflow-x: auto; }
+    .player { flex: 0 0 auto; min-width: 92px; max-width: none; padding: 8px; }
+    .player .name { font-size: 14px; }
+    .player .round { font-size: 24px; }
+    .player .total { font-size: 11px; }
+
+    /* Overlays: scrollbar und volle Breite */
+    .overlay { align-items: flex-start; overflow-y: auto; padding: 14px 0; }
+    .card { width: 92%; max-width: 92%; padding: 20px 16px; margin: 8px auto; }
+    .card.start { max-width: 92%; }
+    .card h2 { font-size: 22px; }
+    .modeRow { flex-direction: column; gap: 8px; }
+    .modeBtn { width: 100%; }
+    .roundsRow { font-size: 16px; }
+    .prow { flex-wrap: wrap; gap: 8px; }
+    .prow input[type=text] { flex: 1 1 100%; }
+    .winner { font-size: 36px; }
+    .menu { min-width: 160px; }
+  }
+
+  /* Querformat-Handy: etwas niedrigere Höhen */
+  @media (max-width: 900px) and (orientation: landscape) and (max-height: 480px) {
+    .wheelWrap { width: 40vw; max-width: 220px; }
+    h1 { font-size: 24px; }
+  }
 </style>
 </head>
 <body>

@@ -29,6 +29,7 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 
 ### P1 – neue Wünsche (Runde 2)
 10. [x] **Computer-Gegner:** Spieler als „🤖 Computer" markierbar, spielt automatisch (dreht, rät Konsonanten nach Häufigkeit mit Fehlerchance, kauft manchmal Vokale, löst bei Sicherheit) – so kann man auch alleine spielen.
+13. [x] **Mobiltauglich:** Responsive Media-Query (≤760px) – einspaltig, scrollbar, kleinere Fee, fingerfreundliche Tasten, scrollbare Overlays. Desktop unverändert.
 11. [x] **Pools vergrößern:** deutlich mehr Rätsel (leicht 52 / schwer 75), Schwer-Pool mit Filmen, Redewendungen, Sprichwörtern, Städten, Personen u. v. m.
 12. [x] **Tusch & Applaus:** Applaus beim Lösen einer Runde, Fanfare (Tusch) + Applaus beim Spielende.
 
