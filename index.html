@@ -158,6 +158,10 @@
     background: linear-gradient(180deg,#3a4a86,#27345f); color: #fff; box-shadow: 0 4px 0 #161f3c; }
   .modeBtn small { font-weight: 600; opacity: .85; font-size: .62em; }
   .modeBtn.active { background: linear-gradient(180deg,var(--gold),var(--gold2)); color: #0b1020; box-shadow: 0 4px 0 #8a5e00; }
+  .roundsRow { display: flex; align-items: center; gap: 1vw; margin-bottom: 2vh; color: var(--muted); font-weight: 700; font-size: clamp(14px,1.6vw,20px); }
+  .roundsBtns { display: flex; gap: .6vw; }
+  .roundsBtns button { padding: .6vh 1.3vw; background: linear-gradient(180deg,#3a4a86,#27345f); color: #fff; box-shadow: 0 3px 0 #161f3c; }
+  .roundsBtns button.active { background: linear-gradient(180deg,var(--gold),var(--gold2)); color: #0b1020; box-shadow: 0 3px 0 #8a5e00; }
   .startPlayers { display: flex; flex-direction: column; gap: 1vh; margin-bottom: 1.4vh; }
   .prow { display: flex; align-items: center; gap: 1vw; }
   .prow input[type=text] { flex: 1; margin: 0; text-align: left; text-transform: none;
@@ -216,6 +220,7 @@
       <div class="menuWrap">
         <button id="menuBtn" class="secondary" title="Einstellungen">⚙</button>
         <div class="menu" id="menu">
+          <button id="endNowBtn" class="secondary">🏁 Jetzt beenden</button>
           <button id="newGameBtn" class="secondary">🔄 Neues Spiel</button>
           <button id="resetBtn" class="secondary">♻️ Reset</button>
         </div>
@@ -322,6 +327,7 @@
       <button id="modeKids" class="modeBtn">👶 Mit Kind<small>leichte Wörter + Hilfe für Kinder</small></button>
       <button id="modeAdults" class="modeBtn">🧠 Ohne Kind<small>schwere Wörter</small></button>
     </div>
+    <div class="roundsRow"><span>Runden:</span><div class="roundsBtns" id="roundsBtns"></div></div>
     <div class="startPlayers" id="startPlayers"></div>
     <button id="addPlayer" class="secondary addBtn">＋ Spieler hinzufügen</button>
     <div class="startHint">Tipp: Im Modus „Mit Kind" bekommen als 👶 markierte Spieler später Extra-Hilfe.</div>
@@ -337,6 +343,7 @@
 function defaultConfig() {
   return {
     kidMode: true,
+    rounds: 5,
     players: [
       { name: "Tobi", isChild: false },
       { name: "Pia",  isChild: false },
@@ -436,7 +443,9 @@ const isLetter = c => /[A-ZÄÖÜ]/.test(c);
 let state;
 function newGame() {
   kidMode = config.kidMode;
-  const deck = shuffle(kidMode ? POOLS.easy : POOLS.hard).slice(0, ROUNDS);
+  const pool = kidMode ? POOLS.easy : POOLS.hard;
+  const rounds = Math.min(config.rounds || ROUNDS, pool.length);
+  const deck = shuffle(pool).slice(0, rounds);
   state = {
     players: config.players.map(p => ({ name: p.name, isChild: p.isChild, round: 0, total: 0 })),
     cur: 0,
@@ -822,22 +831,31 @@ function roundWon(playerIdx) {
   hostessSay(`Bravo ${p.name}! Geschafft! 🎉🏆`, "cheer");
   Audio.sfx.win();
   const isLast = state.puzzleIdx >= state.deck.length - 1; // letzte Runde des Spiels
-  el("endTitle").textContent = isLast ? "🏆 Spiel vorbei!" : "Runde gelöst!";
-  if (isLast) {
-    const ranked = [...state.players].sort((a,b) => b.total - a.total);
-    el("endBody").innerHTML =
-      `<div class="winner">${ranked[0].name} gewinnt!</div>` +
-      ranked.map(r => `<div style="font-size:clamp(16px,2vw,26px)">${r.name}: <b style="color:var(--gold)">${r.total}</b></div>`).join("");
-    el("nextBtn").textContent = "Neues Spiel ▶";
-    clearSave();   // Spiel ist vorbei – nicht wiederherstellen
-    el("nextBtn").onclick = () => { el("endOverlay").classList.remove("show"); showStartScreen(); };
-  } else {
-    state.pending = "round";   // für Reload zwischen den Runden
-    persist();
-    showRoundResult();
-    return;
-  }
+  if (isLast) { showGameOver(); return; }
+  state.pending = "round";   // für Reload zwischen den Runden
+  persist();
+  showRoundResult();
+}
+function showGameOver(title) {
+  const ranked = [...state.players].sort((a, b) => b.total - a.total);
+  const top = ranked[0].total;
+  const winners = ranked.filter(r => r.total === top).map(r => r.name);
+  const winLine = winners.length > 1 ? `${winners.join(" & ")} gewinnen!` : `${winners[0]} gewinnt!`;
+  el("endTitle").textContent = title || "🏆 Spiel vorbei!";
+  el("endBody").innerHTML =
+    `<div class="winner">${top > 0 ? winLine : "Unentschieden!"}</div>` +
+    ranked.map((r, i) => `<div style="font-size:clamp(16px,2vw,26px)">${["🥇","🥈","🥉"][i] || "▫️"} ${r.name}: <b style="color:var(--gold)">${r.total}</b></div>`).join("");
+  el("nextBtn").textContent = "Neues Spiel ▶";
+  el("nextBtn").onclick = () => { el("endOverlay").classList.remove("show"); showStartScreen(); };
+  clearSave();   // Spiel ist vorbei – nicht wiederherstellen
   el("endOverlay").classList.add("show");
+}
+function endGameNow() {
+  if (!state) return;
+  toggleMenu(false);
+  Audio.sfx.win();
+  hostessSay("Das war's für heute – tolles Spiel! 🏆", "cheer");
+  showGameOver("🏁 Spiel beendet!");
 }
 function showRoundResult() {
   const p = state.players[state.cur];
@@ -859,12 +877,22 @@ function showRoundResult() {
 //// ----- Start-Screen -----
 function showStartScreen() {
   renderModeBtns();
+  renderRounds();
   renderStartPlayers();
   el("startOverlay").classList.add("show");
 }
 function renderModeBtns() {
   el("modeKids").classList.toggle("active", config.kidMode);
   el("modeAdults").classList.toggle("active", !config.kidMode);
+}
+function renderRounds() {
+  const c = el("roundsBtns"); c.innerHTML = "";
+  [3, 5, 7, 10].forEach(n => {
+    const b = document.createElement("button");
+    b.textContent = n; b.classList.toggle("active", config.rounds === n);
+    b.onclick = () => { config.rounds = n; renderRounds(); };
+    c.appendChild(b);
+  });
 }
 function renderStartPlayers() {
   const c = el("startPlayers"); c.innerHTML = "";
@@ -966,6 +994,7 @@ el("solveBtn").onclick = openSolve;
 el("sfxBtn").onclick = () => { const on = Audio.toggleSfx(); el("sfxBtn").classList.toggle("off", !on); el("sfxBtn").textContent = on ? "🔊 Sound" : "🔇 Sound"; };
 el("musicBtn").onclick = () => { const on = Audio.toggleMusic(); el("musicBtn").classList.toggle("off", !on); el("musicBtn").textContent = on ? "🎵 Musik" : "🎵 Musik aus"; };
 el("menuBtn").onclick = (e) => { e.stopPropagation(); toggleMenu(); };
+el("endNowBtn").onclick = endGameNow;
 el("newGameBtn").onclick = () => { toggleMenu(false); showStartScreen(); };
 el("resetBtn").onclick = resetGame;
 document.addEventListener("click", (e) => { if (!e.target.closest(".menuWrap")) toggleMenu(false); });

@@ -17,7 +17,7 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 2. [x] **Wortliste:** deutlich erweitern, mit ausliefern, in 2 Schwierigkeiten (leicht/schwer), Reihenfolge bei jedem neuen Spiel echt zufällig (Fisher-Yates).
 3. [x] **Start-Screen + Spieler-Konfiguration:** Spieler hinzufügen/entfernen, Namen eingeben, „neues Spiel". Modus „mit Kind / ohne Kind". Einzelne Spieler als „Kind" markierbar.
 4. [x] **Persistenz:** Spielstand in localStorage – Reload behält den Stand. Plus **Reset-Knopf**.
-5. [ ] **Spielende:** automatisch nach N Runden beenden **und** Knopf „Jetzt beenden!" für einen schönen Abschluss (Sieger-Bildschirm) jederzeit.
+5. [x] **Spielende:** automatisch nach N Runden beenden **und** Knopf „Jetzt beenden!" für einen schönen Abschluss (Sieger-Bildschirm) jederzeit. Rundenzahl (3/5/7/10) im Start-Screen wählbar.
 6. [x] **Einstellungs-Menü:** kleines, unauffälliges Zahnrad-Symbol, hinter dem Reset / Neues Spiel / Jetzt beenden verschwinden – stört das Spielgefühl nicht. *(Zahnrad-Menü mit Neues Spiel/Reset gebaut; „Jetzt beenden" kommt mit #5.)*
 
 ### P2 – wichtig, etwas mehr Aufwand
