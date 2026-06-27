@@ -44,6 +44,12 @@
   .audioCtrl { display: flex; gap: .6vw; align-self: center; }
   .audioCtrl button { padding: .7vh 1vw; font-size: clamp(12px,1.3vw,18px); box-shadow: 0 3px 0 #161f3c; }
   .audioCtrl button.off { opacity: .4; }
+  .menuWrap { position: relative; }
+  .menu { position: absolute; top: 120%; right: 0; display: none; flex-direction: column; gap: .5vh;
+    background: var(--bg2); border: 2px solid var(--tile-edge); border-radius: 12px; padding: 1vh;
+    z-index: 60; min-width: 180px; box-shadow: 0 10px 28px rgba(0,0,0,.55); }
+  .menu.open { display: flex; }
+  .menu button { width: 100%; text-align: left; font-size: clamp(13px,1.4vw,18px); }
 
   /* Layout */
   main { flex: 1; display: grid; grid-template-columns: 1.15fr 1fr; gap: 2vw; min-height: 0; }
@@ -207,6 +213,13 @@
     <div class="audioCtrl">
       <button id="sfxBtn" class="secondary" title="Geräusche an/aus">🔊 Sound</button>
       <button id="musicBtn" class="secondary" title="Musik an/aus">🎵 Musik</button>
+      <div class="menuWrap">
+        <button id="menuBtn" class="secondary" title="Einstellungen">⚙</button>
+        <div class="menu" id="menu">
+          <button id="newGameBtn" class="secondary">🔄 Neues Spiel</button>
+          <button id="resetBtn" class="secondary">♻️ Reset</button>
+        </div>
+      </div>
     </div>
     <div class="category">Kategorie: <b id="cat">—</b></div>
   </header>
@@ -459,6 +472,7 @@ function render() {
   renderPlayers();
   renderKeys();
   updateControls();
+  persist();
 }
 
 function renderBoard() {
@@ -815,19 +829,30 @@ function roundWon(playerIdx) {
       `<div class="winner">${ranked[0].name} gewinnt!</div>` +
       ranked.map(r => `<div style="font-size:clamp(16px,2vw,26px)">${r.name}: <b style="color:var(--gold)">${r.total}</b></div>`).join("");
     el("nextBtn").textContent = "Neues Spiel ▶";
-    el("nextBtn").onclick = () => { el("endOverlay").classList.remove("show"); newGame(); };
+    clearSave();   // Spiel ist vorbei – nicht wiederherstellen
+    el("nextBtn").onclick = () => { el("endOverlay").classList.remove("show"); showStartScreen(); };
   } else {
-    el("endBody").innerHTML =
-      `<div style="font-size:clamp(18px,2.4vw,30px)">${p.name} holt sich <b style="color:var(--gold)">${p.round}</b> Punkte!</div>` +
-      `<div style="margin-top:1.5vh;color:var(--muted)">Lösung: <b>${curPuzzle().text}</b></div>`;
-    el("nextBtn").textContent = "Nächste Runde ▶";
-    el("nextBtn").onclick = () => {
-      el("endOverlay").classList.remove("show");
-      state.puzzleIdx++;
-      loadPuzzle(); render();
-      setStatus(`Neue Runde! <b>${state.players[0].name}</b> beginnt.`, "info");
-    };
+    state.pending = "round";   // für Reload zwischen den Runden
+    persist();
+    showRoundResult();
+    return;
   }
+  el("endOverlay").classList.add("show");
+}
+function showRoundResult() {
+  const p = state.players[state.cur];
+  el("endTitle").textContent = "Runde gelöst!";
+  el("endBody").innerHTML =
+    `<div style="font-size:clamp(18px,2.4vw,30px)">${p.name} holt sich <b style="color:var(--gold)">${p.round}</b> Punkte!</div>` +
+    `<div style="margin-top:1.5vh;color:var(--muted)">Lösung: <b>${curPuzzle().text}</b></div>`;
+  el("nextBtn").textContent = "Nächste Runde ▶";
+  el("nextBtn").onclick = () => {
+    el("endOverlay").classList.remove("show");
+    state.pending = null;
+    state.puzzleIdx++;
+    loadPuzzle(); render();
+    setStatus(`Neue Runde! <b>${state.players[0].name}</b> beginnt.`, "info");
+  };
   el("endOverlay").classList.add("show");
 }
 
@@ -870,9 +895,64 @@ function addPlayer() {
 function startGame() {
   // Namen säubern, leere mit Platzhalter füllen
   config.players.forEach((p, i) => { p.name = (p.name || "").trim() || `Spieler ${i + 1}`; });
+  persistConfig();
   el("startOverlay").classList.remove("show");
   Audio.unlock();
   newGame();
+}
+
+//// ----- Persistenz (localStorage) -----
+const SAVE_KEY = "gluecksrad_save_v1";
+const CFG_KEY  = "gluecksrad_cfg_v1";
+function persist() {
+  if (!state) return;
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      players: state.players, cur: state.cur, deck: state.deck, puzzleIdx: state.puzzleIdx,
+      revealed: [...state.revealed], guessed: [...state.guessed],
+      spinValue: state.spinValue, rotation: state.rotation, kidMode,
+      pending: state.pending || null,
+    }));
+  } catch (e) {}
+}
+function persistConfig() { try { localStorage.setItem(CFG_KEY, JSON.stringify(config)); } catch (e) {} }
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+function loadSave() {
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); return (s && Array.isArray(s.deck) && s.deck.length) ? s : null; }
+  catch (e) { return null; }
+}
+function loadConfig() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CFG_KEY));
+    if (c && Array.isArray(c.players) && c.players.length) return c;
+  } catch (e) {}
+  return null;
+}
+function restoreState(s) {
+  kidMode = s.kidMode;
+  state = {
+    players: s.players, cur: s.cur, deck: s.deck, puzzleIdx: s.puzzleIdx,
+    revealed: new Set(s.revealed), guessed: new Set(s.guessed),
+    spinValue: s.spinValue, spinning: false, rotation: s.rotation || 0,
+    pending: s.pending || null,
+  };
+  drawWheel(state.rotation);
+  render();
+  if (state.pending === "round") { showRoundResult(); return; }
+  setStatus(`Weiter geht's – <b>${state.players[state.cur].name}</b> ist dran!`, "info");
+}
+
+//// ----- Einstellungs-Menü -----
+function toggleMenu(force) {
+  const m = el("menu");
+  m.classList.toggle("open", force === undefined ? !m.classList.contains("open") : force);
+}
+function resetGame() {
+  toggleMenu(false);
+  clearSave();
+  state = null;
+  drawWheel(0);
+  showStartScreen();
 }
 
 //// ----- Wire up -----
@@ -885,6 +965,12 @@ el("vowelBtn").onclick = buyVowel;
 el("solveBtn").onclick = openSolve;
 el("sfxBtn").onclick = () => { const on = Audio.toggleSfx(); el("sfxBtn").classList.toggle("off", !on); el("sfxBtn").textContent = on ? "🔊 Sound" : "🔇 Sound"; };
 el("musicBtn").onclick = () => { const on = Audio.toggleMusic(); el("musicBtn").classList.toggle("off", !on); el("musicBtn").textContent = on ? "🎵 Musik" : "🎵 Musik aus"; };
+el("menuBtn").onclick = (e) => { e.stopPropagation(); toggleMenu(); };
+el("newGameBtn").onclick = () => { toggleMenu(false); showStartScreen(); };
+el("resetBtn").onclick = resetGame;
+document.addEventListener("click", (e) => { if (!e.target.closest(".menuWrap")) toggleMenu(false); });
+// Start-Screen per Klick auf den Hintergrund schließen, wenn schon ein Spiel läuft
+el("startOverlay").addEventListener("click", (e) => { if (e.target.id === "startOverlay" && state) el("startOverlay").classList.remove("show"); });
 el("solveConfirm").onclick = confirmSolve;
 el("solveCancel").onclick = closeSolve;
 el("solveInput").addEventListener("keydown", e => { if (e.key === "Enter") confirmSolve(); });
@@ -897,8 +983,12 @@ document.addEventListener("keydown", e => {
   else if (e.key === " ") { e.preventDefault(); if (!el("spinBtn").disabled) spin(); }
 });
 
-drawWheel(0);
-showStartScreen();
+// Init: gespeicherte Config & laufendes Spiel wiederherstellen, sonst Start-Screen
+const savedCfg = loadConfig();
+if (savedCfg) config = savedCfg;
+const savedGame = loadSave();
+if (savedGame) restoreState(savedGame);
+else { drawWheel(0); showStartScreen(); }
 </script>
 </body>
 </html>
