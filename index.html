@@ -286,21 +286,87 @@
 <script>
 //// ----- Daten -----
 const PLAYERS = ["Tobi", "Pia", "Xavi"];
-// Kinderleichte, kurze Rätsel – damit Xavi (1. Klasse) gut mitlesen & mitraten kann.
-const PUZZLES = [
-  { cat: "Tier",       text: "DER KLEINE HUND" },
-  { cat: "Essen",      text: "PIZZA UND POMMES" },
-  { cat: "Tier",       text: "DIE BUNTE GIRAFFE" },
-  { cat: "Spielzeug",  text: "MEIN ROTER BAGGER" },
-  { cat: "Süßes",      text: "EIS MIT SAHNE" },
-  { cat: "Fahrzeug",   text: "DAS FEUERWEHRAUTO" },
-  { cat: "Tier",       text: "EIN GROSSER ELEFANT" },
-  { cat: "Obst",       text: "APFEL UND BANANE" },
-  { cat: "Spielplatz", text: "DIE HOHE RUTSCHE" },
-  { cat: "Tier",       text: "DIE FAULE KATZE" },
-  { cat: "Natur",      text: "SONNE MOND STERNE" },
-  { cat: "Zuhause",    text: "AB INS BETT" },
-];
+// Zwei Pools: LEICHT (Kindermodus, kurz & vertraut für Xavi, 1. Klasse) und SCHWER (Erwachsene).
+const POOLS = {
+  easy: [
+    { cat: "Tier",       text: "DER KLEINE HUND" },
+    { cat: "Tier",       text: "DIE FAULE KATZE" },
+    { cat: "Tier",       text: "DIE BUNTE GIRAFFE" },
+    { cat: "Tier",       text: "EIN GROSSER ELEFANT" },
+    { cat: "Tier",       text: "DER BRAUNE BÄR" },
+    { cat: "Tier",       text: "DAS WEISSE SCHAF" },
+    { cat: "Tier",       text: "EIN ROTER FUCHS" },
+    { cat: "Tier",       text: "DER GRÜNE FROSCH" },
+    { cat: "Tier",       text: "EIN BUNTER PAPAGEI" },
+    { cat: "Tier",       text: "DIE GRAUE MAUS" },
+    { cat: "Essen",      text: "PIZZA UND POMMES" },
+    { cat: "Essen",      text: "EIS MIT SAHNE" },
+    { cat: "Essen",      text: "NUDELN MIT SOSSE" },
+    { cat: "Essen",      text: "BROT MIT BUTTER" },
+    { cat: "Essen",      text: "EIN SÜSSER KUCHEN" },
+    { cat: "Obst",       text: "APFEL UND BANANE" },
+    { cat: "Obst",       text: "EINE ROTE ERDBEERE" },
+    { cat: "Spielzeug",  text: "MEIN ROTER BAGGER" },
+    { cat: "Spielzeug",  text: "MEIN TEDDYBÄR" },
+    { cat: "Spielzeug",  text: "EIN BUNTER DRACHEN" },
+    { cat: "Fahrzeug",   text: "DAS FEUERWEHRAUTO" },
+    { cat: "Fahrzeug",   text: "DER GROSSE TRAKTOR" },
+    { cat: "Fahrzeug",   text: "EIN SCHNELLES FAHRRAD" },
+    { cat: "Spielplatz", text: "DIE HOHE RUTSCHE" },
+    { cat: "Spielplatz", text: "AUF DER SCHAUKEL" },
+    { cat: "Natur",      text: "SONNE MOND STERNE" },
+    { cat: "Natur",      text: "EIN BUNTER REGENBOGEN" },
+    { cat: "Natur",      text: "DER HOHE BAUM" },
+    { cat: "Natur",      text: "WEICHER WEISSER SCHNEE" },
+    { cat: "Sport",      text: "WIR SPIELEN FUSSBALL" },
+    { cat: "Tag",        text: "GUTE NACHT" },
+    { cat: "Tag",        text: "SCHÖNE FERIEN" },
+    { cat: "Zuhause",    text: "AB INS BETT" },
+  ],
+  hard: [
+    { cat: "Redewendung", text: "DA STEPPT DER BÄR" },
+    { cat: "Redewendung", text: "TOMATEN AUF DEN AUGEN" },
+    { cat: "Redewendung", text: "DIE KATZE IM SACK KAUFEN" },
+    { cat: "Redewendung", text: "ALLES IN BUTTER" },
+    { cat: "Film",        text: "DER HERR DER RINGE" },
+    { cat: "Film",        text: "DER WEISSE HAI" },
+    { cat: "Film",        text: "DAS LEBEN IST SCHÖN" },
+    { cat: "Sprichwort",  text: "MORGENSTUND HAT GOLD IM MUND" },
+    { cat: "Sprichwort",  text: "WER RASTET DER ROSTET" },
+    { cat: "Sprichwort",  text: "LÜGEN HABEN KURZE BEINE" },
+    { cat: "Sprichwort",  text: "REDEN IST SILBER SCHWEIGEN IST GOLD" },
+    { cat: "Band",        text: "DIE TOTEN HOSEN" },
+    { cat: "Band",        text: "DIE ÄRZTE" },
+    { cat: "Stadt",       text: "HAMBURG AN DER ELBE" },
+    { cat: "Stadt",       text: "MÜNCHEN IM SÜDEN" },
+    { cat: "Ort",         text: "AM STRAND VON MALLORCA" },
+    { cat: "Ort",         text: "OBEN AUF DEM BERGGIPFEL" },
+    { cat: "Essen",       text: "CURRYWURST MIT POMMES" },
+    { cat: "Essen",       text: "SCHNITZEL MIT KARTOFFELSALAT" },
+    { cat: "Getränk",     text: "EIN KALTES BIER AM ABEND" },
+    { cat: "Tier",        text: "DER SCHEUE WALDKAUZ" },
+    { cat: "Tier",        text: "EIN GESTREIFTES ZEBRA" },
+    { cat: "Begriff",     text: "GUTE ALTE FREUNDSCHAFT" },
+    { cat: "Natur",       text: "EIN GEWITTER IM SOMMER" },
+    { cat: "Reise",       text: "MIT DEM ZUG NACH ITALIEN" },
+    { cat: "Hobby",       text: "EIN GUTES BUCH LESEN" },
+    { cat: "Wetter",      text: "SCHNEE IM DEZEMBER" },
+    { cat: "Märchen",     text: "HÄNSEL UND GRETEL" },
+    { cat: "Märchen",     text: "DER GESTIEFELTE KATER" },
+    { cat: "Feiertag",    text: "FROHE WEIHNACHTEN" },
+    { cat: "Spruch",      text: "ENDE GUT ALLES GUT" },
+  ],
+};
+let kidMode = true;   // wird vom Start-Screen gesetzt; leicht = an
+const ROUNDS = 5;     // so viele Rätsel pro Spiel (wird später konfigurierbar)
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 const SEGMENTS = [500,800,300,600,"BANKROTT",400,700,250,1000,300,"AUSSETZEN",600,400,800,250,500];
 const SEG_COLORS = ["#e23b3b","#2f7be0","#f5a623","#36b37e","#9b5de5","#ff7aa2","#00b8d9","#ffd54a"];
 const VOWELS = ["A","E","I","O","U","Ä","Ö","Ü"];
@@ -310,11 +376,11 @@ const isLetter = c => /[A-ZÄÖÜ]/.test(c);
 //// ----- State -----
 let state;
 function newGame() {
-  const order = [...Array(PUZZLES.length).keys()].sort(() => Math.random() - 0.5);
+  const deck = shuffle(kidMode ? POOLS.easy : POOLS.hard).slice(0, ROUNDS);
   state = {
     players: PLAYERS.map(n => ({ name: n, round: 0, total: 0 })),
     cur: 0,
-    order, puzzleIdx: 0,
+    deck, puzzleIdx: 0,
     revealed: new Set(),
     guessed: new Set(),
     spinValue: null,    // pending consonant value after a spin
@@ -325,7 +391,7 @@ function newGame() {
   render();
   hostessSay(`Willkommen ${PLAYERS.join(", ")}! ${PLAYERS[0]} beginnt – dreh das Rad! 🎡`);
 }
-function curPuzzle() { return PUZZLES[state.order[state.puzzleIdx]]; }
+function curPuzzle() { return state.deck[state.puzzleIdx]; }
 function loadPuzzle() {
   state.revealed = new Set();
   state.guessed = new Set();
@@ -693,7 +759,7 @@ function roundWon(playerIdx) {
   p.total += p.round;
   hostessSay(`Bravo ${p.name}! Geschafft! 🎉🏆`, "cheer");
   Audio.sfx.win();
-  const isLast = state.puzzleIdx >= Math.min(PUZZLES.length, 5) - 1; // 5 Runden pro Spiel
+  const isLast = state.puzzleIdx >= state.deck.length - 1; // letzte Runde des Spiels
   el("endTitle").textContent = isLast ? "🏆 Spiel vorbei!" : "Runde gelöst!";
   if (isLast) {
     const ranked = [...state.players].sort((a,b) => b.total - a.total);

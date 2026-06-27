@@ -14,7 +14,7 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 
 ### P1 – wichtig, kleines Risiko
 1. [x] **Fee-Fix:** „Bart"-Optik beheben – Hals/Kopf/Haare so, dass das Gesicht stimmt.
-2. [ ] **Wortliste:** deutlich erweitern, mit ausliefern, in 2 Schwierigkeiten (leicht/schwer), Reihenfolge bei jedem neuen Spiel echt zufällig (Fisher-Yates).
+2. [x] **Wortliste:** deutlich erweitern, mit ausliefern, in 2 Schwierigkeiten (leicht/schwer), Reihenfolge bei jedem neuen Spiel echt zufällig (Fisher-Yates).
 3. [ ] **Start-Screen + Spieler-Konfiguration:** Spieler hinzufügen/entfernen, Namen eingeben, „neues Spiel". Modus „mit Kind / ohne Kind". Einzelne Spieler als „Kind" markierbar.
 4. [ ] **Persistenz:** Spielstand in localStorage – Reload behält den Stand. Plus **Reset-Knopf**.
 5. [ ] **Spielende:** automatisch nach N Runden beenden **und** Knopf „Jetzt beenden!" für einen schönen Abschluss (Sieger-Bildschirm) jederzeit.
