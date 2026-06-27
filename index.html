@@ -242,6 +242,8 @@
     .status { font-size: 16px; min-height: 0; padding: 2px 6px; }
     .btnRow { gap: 6px; }
     button { padding: 8px 10px; font-size: 13px; box-shadow: 0 3px 0 #8a5e00; white-space: nowrap; }
+    .optWord { display: none; }   /* "kaufen" auf Mobile weg -> "Vokal (250)" */
+    #tipBtn { flex-basis: 100%; }  /* Kinder-Tipp in eigene Zeile, ohne die 3 Hauptbuttons zu drängen */
     button.secondary { box-shadow: 0 3px 0 #161f3c; }
     .key { width: 27px; height: 32px; font-size: 14px; border-radius: 6px; box-shadow: 0 2px 0 #8a5e00; }
     .keys { gap: 4px; max-width: 100%; }
@@ -317,7 +319,7 @@
       <div class="controls">
         <div class="btnRow">
           <button id="spinBtn">🎡 Drehen</button>
-          <button id="vowelBtn" class="secondary">🔤 Vokal kaufen (250)</button>
+          <button id="vowelBtn" class="secondary">🔤 Vokal<span class="optWord"> kaufen</span> (250)</button>
           <button id="solveBtn" class="secondary">💡 Lösen</button>
           <button id="tipBtn" class="tipBtn">🧒 Tipp</button>
         </div>
