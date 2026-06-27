@@ -28,7 +28,7 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 9. [x] **Fee fliegt zum Buchstaben** und deckt ihn auf – als magischer Funke vom Zauberstab zur Kachel (~0,4 s, nicht-blockierend). Die ganze Figur quer zu teleportieren wurde bewusst vermieden (Risiko hässlich). Literal-Variante (ganze Fee fliegt) bei Bedarf nachrüstbar.
 
 ### P1 – neue Wünsche (Runde 2)
-10. [ ] **Computer-Gegner:** Spieler als „Computer" markierbar, spielt automatisch – so kann man auch alleine spielen.
+10. [x] **Computer-Gegner:** Spieler als „🤖 Computer" markierbar, spielt automatisch (dreht, rät Konsonanten nach Häufigkeit mit Fehlerchance, kauft manchmal Vokale, löst bei Sicherheit) – so kann man auch alleine spielen.
 11. [x] **Pools vergrößern:** deutlich mehr Rätsel (leicht 52 / schwer 75), Schwer-Pool mit Filmen, Redewendungen, Sprichwörtern, Städten, Personen u. v. m.
 12. [x] **Tusch & Applaus:** Applaus beim Lösen einer Runde, Fanfare (Tusch) + Applaus beim Spielende.
 

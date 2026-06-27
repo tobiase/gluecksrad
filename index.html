@@ -353,9 +353,9 @@ function defaultConfig() {
     kidMode: true,
     rounds: 5,
     players: [
-      { name: "Tobi", isChild: false },
-      { name: "Pia",  isChild: false },
-      { name: "Xavi", isChild: true },
+      { name: "Tobi", isChild: false, isCpu: false },
+      { name: "Pia",  isChild: false, isCpu: false },
+      { name: "Xavi", isChild: true,  isCpu: false },
     ],
   };
 }
@@ -513,12 +513,13 @@ const isLetter = c => /[A-ZÄÖÜ]/.test(c);
 //// ----- State -----
 let state;
 function newGame() {
+  clearTimeout(cpuTimer);
   kidMode = config.kidMode;
   const pool = kidMode ? POOLS.easy : POOLS.hard;
   const rounds = Math.min(config.rounds || ROUNDS, pool.length);
   const deck = shuffle(pool).slice(0, rounds);
   state = {
-    players: config.players.map(p => ({ name: p.name, isChild: p.isChild, round: 0, total: 0 })),
+    players: config.players.map(p => ({ name: p.name, isChild: p.isChild, isCpu: p.isCpu, round: 0, total: 0 })),
     cur: 0,
     deck, puzzleIdx: 0,
     revealed: new Set(),
@@ -532,6 +533,7 @@ function newGame() {
   render();
   const names = state.players.map(p => p.name);
   hostessSay(`Willkommen ${names.join(", ")}! ${names[0]} beginnt – dreh das Rad! 🎡`);
+  scheduleCpu(1400);
 }
 function curPuzzle() { return state.deck[state.puzzleIdx]; }
 function loadPuzzle() {
@@ -585,7 +587,8 @@ function renderPlayers() {
   state.players.forEach((p, i) => {
     const d = document.createElement("div");
     d.className = "player" + (i === state.cur ? " active" : "");
-    d.innerHTML = `<div class="name">${p.name}</div>
+    const badge = p.isCpu ? " 🤖" : (p.isChild ? " 👶" : "");
+    d.innerHTML = `<div class="name">${p.name}${badge}</div>
       <div class="round">${p.round}</div>
       <div class="total">Gesamt: ${p.total}</div>`;
     c.appendChild(d);
@@ -724,9 +727,11 @@ const Audio = (() => {
 })();
 
 function updateControls() {
-  el("spinBtn").disabled = state.spinning || state.spinValue != null;
-  el("vowelBtn").disabled = state.spinning || state.spinValue != null || !canBuyVowel();
-  el("solveBtn").disabled = state.spinning;
+  const cpu = isCpuTurn();
+  el("spinBtn").disabled = cpu || state.spinning || state.spinValue != null;
+  el("vowelBtn").disabled = cpu || state.spinning || state.spinValue != null || !canBuyVowel();
+  el("solveBtn").disabled = cpu || state.spinning;
+  el("keys").style.pointerEvents = cpu ? "none" : "auto";
   const showTip = isChildTurn() && !state.helpUsed && !state.spinning;
   el("tipBtn").classList.toggle("show", showTip);
   el("hint").textContent = state.spinValue != null
@@ -849,6 +854,7 @@ function finishSpin() {
     state.spinValue = seg;
     setStatus(`Du hast <b>${seg}</b> gedreht — rate einen Konsonanten!`, "info");
     hostessSay(`${seg} Punkte! Welcher Buchstabe? 🔤`);
+    scheduleCpu(900);
   }
   render();
 }
@@ -869,6 +875,7 @@ function guessConsonant(ch) {
     hostessSay(pick([`Super! ${count}× das ${ch}! 🎉`, "Klasse geraten!", "Toll gemacht! ⭐"]), "cheer");
     Audio.sfx.correct();
     if (allRevealed()) return solvedByReveal();
+    scheduleCpu(1100);   // CPU macht weiter
   } else {
     state.spinValue = null;
     setStatus(`❌ Kein „${ch}". Nächster Spieler!`, "bad");
@@ -911,10 +918,12 @@ function resolveVowel(v) {
     hostessSay(`Da ist ein ${v}! ✨`, "cheer");
     Audio.sfx.vowel();
     if (allRevealed()) return solvedByReveal();
+    scheduleCpu(1100);
   } else {
     setStatus(`❌ Kein „${v}". Du bleibst dran — weiter drehen oder lösen.`, "bad");
     hostessSay(`Kein ${v} dabei – versuch's weiter!`);
     Audio.sfx.wrong();
+    scheduleCpu(1100);
   }
   render();
 }
@@ -983,9 +992,66 @@ function nextPlayer() {
   state.helpUsed = false;
   state.cur = (state.cur + 1) % state.players.length;
   const name = state.players[state.cur].name;
-  setStatus(`<b>${name}</b> ist dran — Drehen!`, "info");
-  hostessSay(isChildTurn() ? childHint() : `${name}, du bist dran! 🎡`);
+  setStatus(`<b>${name}</b> ist dran${isCpuTurn() ? " 🤖…" : " — Drehen!"}`, "info");
+  hostessSay(isCpuTurn() ? `🤖 ${name} ist am Zug!` : (isChildTurn() ? childHint() : `${name}, du bist dran! 🎡`));
   renderKeys(); render();
+  scheduleCpu();
+}
+
+//// ----- Computer-Gegner -----
+let cpuTimer = null;
+function isCpuTurn() { return !!(state && state.players[state.cur] && state.players[state.cur].isCpu); }
+function scheduleCpu(delay = 1100) {
+  clearTimeout(cpuTimer);
+  if (isCpuTurn()) cpuTimer = setTimeout(cpuStep, delay);
+}
+const CONS_FREQ = ["N","R","S","T","L","D","H","G","M","B","W","F","K","Z","P","V","C","J","Q","X","Y"];
+const VOWEL_FREQ = ["E","A","I","O","U","Ä","Ö","Ü"];
+function cpuStep() {
+  if (!isCpuTurn() || state.spinning) return;
+  if (el("endOverlay").classList.contains("show") || el("startOverlay").classList.contains("show")) return;
+  if (state.spinValue != null) { cpuGuessConsonant(); return; }   // Konsonant raten
+  if (cpuShouldSolve()) { cpuSolve(); return; }
+  if (cpuShouldBuyVowel()) { cpuBuyVowel(); return; }
+  spin();   // finishSpin plant den nächsten Schritt
+}
+function revealFraction() {
+  const letters = [...curPuzzle().text].filter(isLetter);
+  const shown = letters.filter(c => state.revealed.has(c)).length;
+  return letters.length ? shown / letters.length : 1;
+}
+function cpuShouldSolve() {
+  const hidden = [...new Set([...curPuzzle().text].filter(c => isLetter(c) && !state.revealed.has(c)))];
+  if (hidden.length === 0) return true;
+  if (hidden.length <= 2) return Math.random() < 0.9;
+  if (revealFraction() >= 0.6) return Math.random() < 0.5;
+  return false;
+}
+function cpuShouldBuyVowel() {
+  if (state.players[state.cur].round < 300) return false;
+  const hiddenVowels = VOWELS.some(v => !state.guessed.has(v) && curPuzzle().text.includes(v));
+  return hiddenVowels && Math.random() < 0.3;
+}
+function cpuGuessConsonant() {
+  const avail = CONS_FREQ.filter(c => !state.guessed.has(c));
+  if (!avail.length) { nextPlayer(); return; }
+  const ch = Math.random() < 0.75 ? pick(avail.slice(0, 6)) : pick(avail);   // meist häufig, manchmal daneben
+  setStatus(`🤖 ${state.players[state.cur].name} rät „${ch}" …`, "info");
+  guessConsonant(ch);
+}
+function cpuBuyVowel() {
+  const v = VOWEL_FREQ.find(x => !state.guessed.has(x));
+  if (!v) { spin(); return; }
+  setStatus(`🤖 ${state.players[state.cur].name} kauft Vokal „${v}" …`, "info");
+  resolveVowel(v);
+}
+function cpuSolve() {
+  const answer = curPuzzle().text;
+  [...answer].forEach(c => { if (isLetter(c)) state.revealed.add(c); });
+  setStatus(`🤖 ${state.players[state.cur].name} löst: ${answer}`, "good");
+  hostessSay("Der Computer hat's gelöst! 🤖", "cheer");
+  render();
+  roundWon(state.cur);
 }
 
 function roundWon(playerIdx) {
@@ -1033,6 +1099,7 @@ function showRoundResult() {
     state.puzzleIdx++;
     loadPuzzle(); render();
     setStatus(`Neue Runde! <b>${state.players[0].name}</b> beginnt.`, "info");
+    scheduleCpu(1200);
   };
   el("endOverlay").classList.add("show");
 }
@@ -1066,15 +1133,19 @@ function renderStartPlayers() {
     input.oninput = () => { config.players[i].name = input.value; };
     const lab = document.createElement("label"); lab.className = "kid";
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = p.isChild;
-    cb.onchange = () => { config.players[i].isChild = cb.checked; };
+    cb.onchange = () => { config.players[i].isChild = cb.checked; if (cb.checked) { config.players[i].isCpu = false; renderStartPlayers(); } };
     lab.appendChild(cb); lab.append(" 👶 Kind");
+    const labC = document.createElement("label"); labC.className = "kid";
+    const cbC = document.createElement("input"); cbC.type = "checkbox"; cbC.checked = p.isCpu;
+    cbC.onchange = () => { config.players[i].isCpu = cbC.checked; if (cbC.checked) { config.players[i].isChild = false; renderStartPlayers(); } };
+    labC.appendChild(cbC); labC.append(" 🤖 PC");
     const rm = document.createElement("button"); rm.className = "rm"; rm.textContent = "✕"; rm.title = "Entfernen";
     rm.onclick = () => {
       if (config.players.length <= 1) return;
       config.players.splice(i, 1); renderStartPlayers();
     };
     rm.disabled = config.players.length <= 1;
-    row.append(input, lab, rm);
+    row.append(input, lab, labC, rm);
     c.appendChild(row);
   });
 }
@@ -1131,6 +1202,7 @@ function restoreState(s) {
   render();
   if (state.pending === "round") { showRoundResult(); return; }
   setStatus(`Weiter geht's – <b>${state.players[state.cur].name}</b> ist dran!`, "info");
+  scheduleCpu(1400);
 }
 
 //// ----- Einstellungs-Menü -----
@@ -1140,6 +1212,7 @@ function toggleMenu(force) {
 }
 function resetGame() {
   toggleMenu(false);
+  clearTimeout(cpuTimer);
   clearSave();
   state = null;
   drawWheel(0);
@@ -1171,6 +1244,7 @@ document.addEventListener("keydown", e => {
   if (!state) return;
   if (el("solveOverlay").classList.contains("show")) return;
   if (el("startOverlay").classList.contains("show") || el("endOverlay").classList.contains("show")) return;
+  if (isCpuTurn()) return;
   const ch = e.key.toUpperCase();
   if (state.spinValue != null && /^[BCDFGHJKLMNPQRSTVWXYZ]$/.test(ch)) guessConsonant(ch);
   else if (e.key === " ") { e.preventDefault(); if (!el("spinBtn").disabled) spin(); }
