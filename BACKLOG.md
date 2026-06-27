@@ -30,7 +30,7 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 ### P1 – neue Wünsche (Runde 2)
 10. [ ] **Computer-Gegner:** Spieler als „Computer" markierbar, spielt automatisch – so kann man auch alleine spielen.
 11. [x] **Pools vergrößern:** deutlich mehr Rätsel (leicht 52 / schwer 75), Schwer-Pool mit Filmen, Redewendungen, Sprichwörtern, Städten, Personen u. v. m.
-12. [ ] **Tusch & Applaus:** festliche Sounds beim Lösen / Spielsieg.
+12. [x] **Tusch & Applaus:** Applaus beim Lösen einer Runde, Fanfare (Tusch) + Applaus beim Spielende.
 
 ## Weitere Ideen (Parkplatz)
 - Lautstärke-Regler statt nur an/aus

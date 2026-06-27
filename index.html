@@ -666,6 +666,23 @@ const Audio = (() => {
   }
   // Tonleiter-Frequenzen
   const N = { C4:261.6,D4:293.7,E4:329.6,F4:349.2,G4:392,A4:440,B4:493.9,C5:523.3,D5:587.3,E5:659.3,G5:784,A5:880,C6:1046.5 };
+  // Applaus über gefiltertes Rauschen (klingt nach klatschendem Publikum)
+  function applauseBurst(dur = 1.8, gain = 0.28) {
+    if (!ctx) return;
+    duckMusic();
+    const t = ctx.currentTime, len = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (0.5 + 0.5 * Math.random()); // körniges Klatschen
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1900; bp.Q.value = 0.7;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.12);
+    g.gain.linearRampToValueAtTime(gain * 0.75, t + dur * 0.45);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(bp).connect(g).connect(ctx.destination);
+    src.start(t); src.stop(t + dur);
+  }
 
   const sfx = {
     tick()      { if (sfxOn && ctx) tone(1200, 0.03, { type: "square", gain: 0.08 }); },
@@ -675,6 +692,11 @@ const Audio = (() => {
     wrong()     { if (sfxOn) { ensure(); tone(300, 0.45, { type: "sawtooth", gain: 0.2, slideTo: 90 }); } },
     bankrupt()  { if (sfxOn) { ensure(); seq([N.E4, N.D4, N.C4], { type: "sawtooth", gain: 0.22, step: 0.18 }); tone(110,0.6,{type:"sawtooth",gain:0.15,when:0.5,slideTo:70}); } },
     win()       { if (sfxOn) { ensure(); seq([N.C5,N.E5,N.G5,N.C6,N.G5,N.C6], { gain: 0.24, step: 0.13 }); } },
+    applause()  { if (sfxOn) { ensure(); applauseBurst(1.8, 0.28); } },
+    fanfare()   { if (sfxOn) { ensure();
+      seq([N.G4, N.C5, N.E5, N.G5], { type: "sawtooth", gain: 0.16, step: 0.13 });   // Ta-ta-ta-taa
+      [N.C5, N.E5, N.G5].forEach(f => tone(f, 0.8, { type: "sawtooth", gain: 0.12, when: 0.52 })); // Schluss-Akkord
+    } },
   };
 
   // sanfte Hintergrundmusik – fröhliche Schleife (Pentatonik)
@@ -970,14 +992,15 @@ function roundWon(playerIdx) {
   const p = state.players[playerIdx];
   p.total += p.round;
   hostessSay(`Bravo ${p.name}! Geschafft! 🎉🏆`, "cheer");
-  Audio.sfx.win();
   const isLast = state.puzzleIdx >= state.deck.length - 1; // letzte Runde des Spiels
   if (isLast) { showGameOver(); return; }
+  Audio.sfx.win(); Audio.sfx.applause();   // Runde gelöst: Jubel + Applaus
   state.pending = "round";   // für Reload zwischen den Runden
   persist();
   showRoundResult();
 }
 function showGameOver(title) {
+  Audio.sfx.fanfare(); Audio.sfx.applause();   // grosses Finale: Tusch + Applaus
   const ranked = [...state.players].sort((a, b) => b.total - a.total);
   const top = ranked[0].total;
   const winners = ranked.filter(r => r.total === top).map(r => r.name);
@@ -994,7 +1017,6 @@ function showGameOver(title) {
 function endGameNow() {
   if (!state) return;
   toggleMenu(false);
-  Audio.sfx.win();
   hostessSay("Das war's für heute – tolles Spiel! 🏆", "cheer");
   showGameOver("🏁 Spiel beendet!");
 }
