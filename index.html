@@ -564,15 +564,26 @@ const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
 //// ----- Audio (Web Audio API, keine Dateien nötig) -----
 const Audio = (() => {
-  let ctx = null, sfxOn = true, musicOn = false, musicTimer = null;
+  let ctx = null, sfxOn = true, musicOn = false, musicTimer = null, musicGain = null;
   const ensure = () => {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!musicGain) { musicGain = ctx.createGain(); musicGain.gain.value = 1; musicGain.connect(ctx.destination); }
     if (ctx.state === "suspended") ctx.resume();
     return ctx;
   };
-  // einzelner Ton mit weicher Hüllkurve
-  function tone(freq, dur, { type = "sine", gain = 0.18, when = 0, slideTo = null } = {}) {
+  // Ducking: Musik kurz absenken, wenn ein Geräusch spielt
+  function duckMusic() {
+    if (!musicOn || !musicGain) return;
+    const t = ctx.currentTime;
+    musicGain.gain.cancelScheduledValues(t);
+    musicGain.gain.setValueAtTime(0.25, t);
+    musicGain.gain.linearRampToValueAtTime(1, t + 0.5);
+  }
+  // einzelner Ton mit weicher Hüllkurve; dest=musicGain für Musik, sonst SFX (-> duckt)
+  function tone(freq, dur, { type = "sine", gain = 0.18, when = 0, slideTo = null, dest = null } = {}) {
     if (!ctx) return;
+    const out = dest || ctx.destination;
+    if (out === ctx.destination) duckMusic();   // ein SFX -> Musik ducken
     const t = ctx.currentTime + when;
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t);
@@ -580,7 +591,7 @@ const Audio = (() => {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(gain, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(ctx.destination);
+    o.connect(g).connect(out);
     o.start(t); o.stop(t + dur + 0.02);
   }
   function seq(notes, { type = "triangle", gain = 0.2, step = 0.12 } = {}) {
@@ -605,8 +616,8 @@ const Audio = (() => {
   function musicStep() {
     if (!musicOn) return;
     const f = MELODY[mi % MELODY.length];
-    tone(f, 0.42, { type: "triangle", gain: 0.05 });
-    tone(f / 2, 0.42, { type: "sine", gain: 0.035 });   // sanfter Bass
+    tone(f, 0.42, { type: "triangle", gain: 0.05, dest: musicGain });
+    tone(f / 2, 0.42, { type: "sine", gain: 0.035, dest: musicGain });   // sanfter Bass
     mi++;
     musicTimer = setTimeout(musicStep, 360);
   }

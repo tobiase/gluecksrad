@@ -22,7 +22,7 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 
 ### P2 – wichtig, etwas mehr Aufwand
 7. [x] **Kinder-Hilfe:** Im Kindermodus bekommen als „Kind" markierte Spieler extra Hilfe – Tipp und/oder geschenkter Buchstabe an ihrem Zug.
-8. [ ] **Sound-Ducking:** Hintergrundmusik wird leiser, während ein Geräusch spielt.
+8. [x] **Sound-Ducking:** Hintergrundmusik wird leiser, während ein Geräusch spielt.
 
 ### P3 – nett, aber Risiko / zuletzt
 9. [ ] **Fee fliegt zum Buchstaben** und deckt ihn auf – muss **super schnell** sein, darf das Tempo nicht bremsen. Hohes Risiko, schlecht auszusehen → **ganz zuletzt**.
