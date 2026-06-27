@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Glücksrad</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg2: #131c3a;
+    --panel: rgba(255,255,255,0.04);
+    --gold: #ffd54a;
+    --gold2: #ffb300;
+    --txt: #f4f6ff;
+    --muted: #9fb0d8;
+    --good: #34d399;
+    --bad: #f87171;
+    --tile: #1a2547;
+    --tile-edge: #2c3c72;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: radial-gradient(1200px 800px at 50% -10%, var(--bg2), var(--bg));
+    color: var(--txt);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+  #app { height: 100vh; display: flex; flex-direction: column; padding: 1.4vh 2vw; gap: 1.2vh; }
+
+  /* Header */
+  header { display: flex; align-items: baseline; justify-content: space-between; }
+  h1 {
+    margin: 0; font-size: clamp(28px, 4.2vw, 64px); letter-spacing: 2px;
+    background: linear-gradient(180deg, var(--gold), var(--gold2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-weight: 800; text-shadow: 0 2px 12px rgba(255,179,0,0.15);
+  }
+  .category {
+    font-size: clamp(16px, 1.8vw, 26px); color: var(--muted);
+    text-transform: uppercase; letter-spacing: 3px; font-weight: 600;
+  }
+  .category b { color: var(--gold); }
+  .audioCtrl { display: flex; gap: .6vw; align-self: center; }
+  .audioCtrl button { padding: .7vh 1vw; font-size: clamp(12px,1.3vw,18px); box-shadow: 0 3px 0 #161f3c; }
+  .audioCtrl button.off { opacity: .4; }
+
+  /* Layout */
+  main { flex: 1; display: grid; grid-template-columns: 1.15fr 1fr; gap: 2vw; min-height: 0; }
+  .left { display: flex; flex-direction: column; gap: 1.4vh; min-height: 0; }
+  .right { display: flex; flex-direction: column; align-items: center; gap: 1.2vh; min-height: 0; }
+
+  /* Puzzle board */
+  #board { display: flex; flex-direction: column; gap: 1vh; align-items: center; justify-content: center; flex: 1; }
+  .row { display: flex; gap: 0.6vw; justify-content: center; flex-wrap: wrap; }
+  .tile {
+    width: clamp(34px, 4.4vw, 78px); height: clamp(46px, 6vw, 104px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(22px, 3.4vw, 60px); font-weight: 800;
+    border-radius: 8px; background: var(--tile);
+    border: 2px solid var(--tile-edge); box-shadow: inset 0 -4px 0 rgba(0,0,0,0.25);
+  }
+  .tile.empty { background: transparent; border-color: transparent; box-shadow: none; }
+  .tile.hidden { background: #eef2ff; border-color: #cdd6f4; }
+  .tile.revealed { background: #fff; color: #0b1020; animation: pop .25s ease; }
+  @keyframes pop { from { transform: scale(.6); } to { transform: scale(1); } }
+
+  /* Players */
+  .players { display: flex; gap: 1.4vw; justify-content: center; padding: .6vh 0 .8vh; padding-left: clamp(150px, 15vw, 240px); }
+  .player {
+    flex: 1; max-width: 240px; background: var(--panel); border: 2px solid transparent;
+    border-radius: 14px; padding: 1vh 1vw; text-align: center; transition: .2s;
+  }
+  .player.active {
+    border-color: var(--gold); background: rgba(255,213,74,0.10);
+    box-shadow: 0 0 24px rgba(255,179,0,0.25);
+  }
+  .player .name { font-size: clamp(15px,1.6vw,22px); font-weight: 700; }
+  .player .round { font-size: clamp(20px,2.6vw,38px); font-weight: 800; color: var(--gold); }
+  .player .total { font-size: clamp(12px,1.2vw,16px); color: var(--muted); }
+
+  /* Wheel */
+  .wheelWrap { position: relative; width: clamp(220px, 26vw, 380px); aspect-ratio: 1; }
+  canvas { width: 100%; height: 100%; display: block; filter: drop-shadow(0 8px 20px rgba(0,0,0,.45)); }
+  .pointer {
+    position: absolute; top: -2%; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0; border-left: 16px solid transparent; border-right: 16px solid transparent;
+    border-top: 28px solid var(--gold); z-index: 5; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5));
+  }
+  .hub {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 16%; height: 16%; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, var(--gold2));
+    border: 3px solid #7a5200; z-index: 4;
+  }
+
+  /* Status + controls */
+  .status {
+    min-height: 3.2vh; text-align: center; font-size: clamp(16px,2vw,30px);
+    font-weight: 700; padding: .6vh 1vw; border-radius: 10px;
+  }
+  .status.info { color: var(--gold); }
+  .status.good { color: var(--good); }
+  .status.bad  { color: var(--bad); }
+
+  .controls { display: flex; flex-direction: column; gap: 1vh; align-items: center; width: 100%; }
+  .btnRow { display: flex; gap: .8vw; flex-wrap: wrap; justify-content: center; }
+  button {
+    font-family: inherit; font-weight: 800; cursor: pointer; color: #0b1020;
+    border: none; border-radius: 12px; padding: 1.1vh 1.6vw;
+    font-size: clamp(14px,1.7vw,24px); transition: transform .08s, filter .15s;
+    background: linear-gradient(180deg, var(--gold), var(--gold2));
+    box-shadow: 0 4px 0 #8a5e00;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
+  button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #8a5e00; }
+  button.secondary { background: linear-gradient(180deg,#3a4a86,#27345f); color: #fff; box-shadow: 0 4px 0 #161f3c; }
+  button:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; transform: none; }
+
+  /* Letter keyboard */
+  .keys { display: flex; flex-wrap: wrap; gap: .5vw; justify-content: center; max-width: 100%; }
+  .key {
+    width: clamp(30px,2.6vw,46px); height: clamp(30px,2.6vw,46px); padding: 0;
+    font-size: clamp(14px,1.5vw,22px); border-radius: 8px; box-shadow: 0 3px 0 #8a5e00;
+  }
+  .key.vowel { background: linear-gradient(180deg,#7bdcff,#36a9e0); color:#06243a; box-shadow:0 3px 0 #0d4f73; }
+  .key.used { opacity: .25; pointer-events: none; }
+  .hint { color: var(--muted); font-size: clamp(12px,1.3vw,18px); }
+
+  /* Overlay (solve + setup) */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(5,8,20,.86); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  .overlay.show { display: flex; }
+  .card {
+    background: var(--bg2); border: 2px solid var(--tile-edge); border-radius: 18px;
+    padding: 4vh 4vw; text-align: center; max-width: 720px; width: 90%;
+  }
+  .card h2 { margin: 0 0 2vh; font-size: clamp(22px,3vw,40px); color: var(--gold); }
+  .card input, .card textarea {
+    width: 100%; font-size: clamp(18px,2.4vw,32px); font-family: inherit; font-weight: 700;
+    text-align: center; text-transform: uppercase; padding: 1.4vh 1vw; border-radius: 12px;
+    border: 2px solid var(--tile-edge); background: #0b1224; color: #fff; margin-bottom: 2vh;
+  }
+  .winner { font-size: clamp(28px,5vw,72px); font-weight: 900; color: var(--gold); margin: 2vh 0; }
+
+  /* Glücksfee */
+  .hostess {
+    position: fixed; left: 1vw; bottom: 0; width: clamp(120px, 13vw, 210px);
+    z-index: 20; pointer-events: none; transform-origin: bottom center;
+    animation: sway 3.5s ease-in-out infinite;
+  }
+  .hostess svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 6px 14px rgba(0,0,0,.4)); }
+  @keyframes sway { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+  .armR { transform-origin: 144px 188px; animation: wave 1.6s ease-in-out infinite; }
+  @keyframes wave { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-16deg); } }
+  .eye { animation: blink 4s infinite; }
+  @keyframes blink { 0%,92%,100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+  .nametag {
+    text-align: center; margin-top: .3vh; font-weight: 800; color: var(--gold);
+    font-size: clamp(11px,1.1vw,16px); text-shadow: 0 1px 4px rgba(0,0,0,.6);
+  }
+  .bubble {
+    position: absolute; bottom: 86%; left: 60%; min-width: 150px; max-width: 280px;
+    background: #fff; color: #14203f; font-weight: 700; font-size: clamp(13px,1.3vw,20px);
+    padding: 1vh 1.2vw; border-radius: 16px; line-height: 1.25; text-align: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: opacity .25s, transform .25s;
+  }
+  .bubble::after {
+    content: ""; position: absolute; bottom: -14px; left: 22px;
+    border: 10px solid transparent; border-top-color: #fff; border-bottom: 0;
+  }
+  .bubble.hide { opacity: 0; transform: translateY(8px); }
+  /* Stimmungen */
+  .hostess.cheer { animation: cheerBounce .6s ease infinite; }
+  @keyframes cheerBounce { 0%,100% { transform: translateY(0) rotate(-1deg);} 50% { transform: translateY(-10px) rotate(2deg);} }
+  .hostess.cheer .armR { animation: armUp .5s ease forwards; }
+  @keyframes armUp { to { transform: rotate(-55deg); } }
+  .hostess.sad .armR { animation: none; transform: rotate(6deg); }
+  .hostess.sad #mouth { d: path("M96 146 Q110 134 124 146"); }
+  .hostess.cheer #mouth { d: path("M92 136 Q110 158 128 136"); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>★ GLÜCKSRAD ★</h1>
+    <div class="audioCtrl">
+      <button id="sfxBtn" class="secondary" title="Geräusche an/aus">🔊 Sound</button>
+      <button id="musicBtn" class="secondary" title="Musik an/aus">🎵 Musik</button>
+    </div>
+    <div class="category">Kategorie: <b id="cat">—</b></div>
+  </header>
+
+  <main>
+    <div class="left">
+      <div id="board"></div>
+    </div>
+
+    <div class="right">
+      <div class="wheelWrap">
+        <div class="pointer"></div>
+        <div class="hub"></div>
+        <canvas id="wheel" width="600" height="600"></canvas>
+      </div>
+      <div class="status info" id="status">Drücke <b>Drehen</b> zum Start!</div>
+      <div class="controls">
+        <div class="btnRow">
+          <button id="spinBtn">🎡 Drehen</button>
+          <button id="vowelBtn" class="secondary">🔤 Vokal kaufen (250)</button>
+          <button id="solveBtn" class="secondary">💡 Lösen</button>
+        </div>
+        <div class="keys" id="keys"></div>
+        <div class="hint" id="hint"></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="players" id="players"></div>
+</div>
+
+<!-- Glücksfee / Moderatorin -->
+<div class="hostess" id="hostess">
+  <div class="bubble" id="bubble">Hallo! Ich bin Fee Lina – los geht's! 🎉</div>
+  <svg viewBox="0 0 220 360" id="feeSvg" aria-label="Glücksfee">
+    <!-- Schatten -->
+    <ellipse cx="110" cy="350" rx="60" ry="9" fill="rgba(0,0,0,0.35)"/>
+    <!-- Kleid -->
+    <path d="M70 175 Q110 165 150 175 L185 330 Q110 350 35 330 Z" fill="#e23b8a"/>
+    <path d="M70 175 Q110 165 150 175 L160 235 Q110 248 60 235 Z" fill="#ff5fa8"/>
+    <!-- Sterne auf dem Kleid -->
+    <text x="92" y="290" font-size="22" fill="#ffd54a">★</text>
+    <text x="118" y="315" font-size="16" fill="#ffd54a">★</text>
+    <!-- Linker Arm -->
+    <g class="armL"><path d="M76 188 q-34 22 -40 58" stroke="#ffd9b3" stroke-width="15" fill="none" stroke-linecap="round"/><circle cx="36" cy="246" r="10" fill="#ffd9b3"/></g>
+    <!-- Rechter Arm (winkt/präsentiert) -->
+    <g class="armR"><path d="M144 188 q42 -6 60 -34" stroke="#ffd9b3" stroke-width="15" fill="none" stroke-linecap="round"/><circle cx="204" cy="154" r="11" fill="#ffd9b3"/></g>
+    <!-- Hals -->
+    <rect x="100" y="150" width="20" height="28" rx="8" fill="#ffd9b3"/>
+    <!-- Haare hinten -->
+    <path d="M68 118 Q110 60 152 118 L150 200 Q110 175 70 200 Z" fill="#7a4a2b"/>
+    <!-- Kopf -->
+    <circle cx="110" cy="120" r="46" fill="#ffe0c2"/>
+    <!-- Haare vorne -->
+    <path d="M64 120 Q70 64 110 62 Q150 64 156 120 Q150 96 110 92 Q70 96 64 120 Z" fill="#8a5430"/>
+    <!-- Gesicht -->
+    <circle class="eye" cx="94" cy="118" r="5" fill="#3a2a1a"/>
+    <circle class="eye" cx="126" cy="118" r="5" fill="#3a2a1a"/>
+    <circle cx="84" cy="132" r="6" fill="#ff9bbf" opacity="0.6"/>
+    <circle cx="136" cy="132" r="6" fill="#ff9bbf" opacity="0.6"/>
+    <path id="mouth" d="M96 138 Q110 152 124 138" stroke="#b5413f" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <!-- Krönchen -->
+    <path d="M86 70 L96 52 L110 66 L124 52 L134 70 Z" fill="#ffd54a" stroke="#b5870a" stroke-width="2"/>
+    <circle cx="110" cy="50" r="4" fill="#fff"/>
+    <!-- Zauberstab in der rechten Hand -->
+    <g class="wand"><line x1="204" y1="154" x2="226" y2="120" stroke="#ffd54a" stroke-width="4"/><text x="220" y="120" font-size="26" fill="#ffd54a">✨</text></g>
+  </svg>
+  <div class="nametag">✨ Fee Lina ✨</div>
+</div>
+
+<!-- Solve overlay -->
+<div class="overlay" id="solveOverlay">
+  <div class="card">
+    <h2>Lösungswort eingeben</h2>
+    <input id="solveInput" autocomplete="off" placeholder="Ganze Lösung tippen…" />
+    <div class="btnRow" style="justify-content:center">
+      <button id="solveConfirm">Lösen</button>
+      <button id="solveCancel" class="secondary">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Round/Game end overlay -->
+<div class="overlay" id="endOverlay">
+  <div class="card">
+    <h2 id="endTitle">Runde gelöst!</h2>
+    <div id="endBody"></div>
+    <div class="btnRow" style="justify-content:center">
+      <button id="nextBtn">Weiter ▶</button>
+    </div>
+  </div>
+</div>
+
+<script>
+//// ----- Daten -----
+const PLAYERS = ["Tobi", "Pia", "Xavi"];
+// Kinderleichte, kurze Rätsel – damit Xavi (1. Klasse) gut mitlesen & mitraten kann.
+const PUZZLES = [
+  { cat: "Tier",       text: "DER KLEINE HUND" },
+  { cat: "Essen",      text: "PIZZA UND POMMES" },
+  { cat: "Tier",       text: "DIE BUNTE GIRAFFE" },
+  { cat: "Spielzeug",  text: "MEIN ROTER BAGGER" },
+  { cat: "Süßes",      text: "EIS MIT SAHNE" },
+  { cat: "Fahrzeug",   text: "DAS FEUERWEHRAUTO" },
+  { cat: "Tier",       text: "EIN GROSSER ELEFANT" },
+  { cat: "Obst",       text: "APFEL UND BANANE" },
+  { cat: "Spielplatz", text: "DIE HOHE RUTSCHE" },
+  { cat: "Tier",       text: "DIE FAULE KATZE" },
+  { cat: "Natur",      text: "SONNE MOND STERNE" },
+  { cat: "Zuhause",    text: "AB INS BETT" },
+];
+const SEGMENTS = [500,800,300,600,"BANKROTT",400,700,250,1000,300,"AUSSETZEN",600,400,800,250,500];
+const SEG_COLORS = ["#e23b3b","#2f7be0","#f5a623","#36b37e","#9b5de5","#ff7aa2","#00b8d9","#ffd54a"];
+const VOWELS = ["A","E","I","O","U","Ä","Ö","Ü"];
+const isVowel = c => VOWELS.includes(c);
+const isLetter = c => /[A-ZÄÖÜ]/.test(c);
+
+//// ----- State -----
+let state;
+function newGame() {
+  const order = [...Array(PUZZLES.length).keys()].sort(() => Math.random() - 0.5);
+  state = {
+    players: PLAYERS.map(n => ({ name: n, round: 0, total: 0 })),
+    cur: 0,
+    order, puzzleIdx: 0,
+    revealed: new Set(),
+    guessed: new Set(),
+    spinValue: null,    // pending consonant value after a spin
+    spinning: false,
+    rotation: 0,
+  };
+  loadPuzzle();
+  render();
+  hostessSay(`Willkommen ${PLAYERS.join(", ")}! ${PLAYERS[0]} beginnt – dreh das Rad! 🎡`);
+}
+function curPuzzle() { return PUZZLES[state.order[state.puzzleIdx]]; }
+function loadPuzzle() {
+  state.revealed = new Set();
+  state.guessed = new Set();
+  state.spinValue = null;
+  state.players.forEach(p => p.round = 0);
+  state.cur = 0;
+  // auto-reveal spaces & punctuation
+}
+
+//// ----- Rendering -----
+const el = id => document.getElementById(id);
+
+function render() {
+  const pz = curPuzzle();
+  el("cat").textContent = pz.cat;
+  renderBoard();
+  renderPlayers();
+  renderKeys();
+  updateControls();
+}
+
+function renderBoard() {
+  const words = curPuzzle().text.split(" ");
+  const board = el("board");
+  board.innerHTML = "";
+  // group words into rows so they fit; simple: one row, wrap handled by flex
+  const row = document.createElement("div"); row.className = "row";
+  words.forEach((w, wi) => {
+    const wordEl = document.createElement("div"); wordEl.className = "row"; wordEl.style.gap = "0.6vw";
+    [...w].forEach(ch => {
+      const t = document.createElement("div");
+      if (!isLetter(ch)) { t.className = "tile revealed"; t.textContent = ch; }
+      else if (state.revealed.has(ch)) { t.className = "tile revealed"; t.textContent = ch; }
+      else { t.className = "tile hidden"; t.textContent = ""; }
+      wordEl.appendChild(t);
+    });
+    row.appendChild(wordEl);
+    if (wi < words.length - 1) {
+      const sp = document.createElement("div"); sp.className = "tile empty"; sp.style.width = "1.4vw";
+      row.appendChild(sp);
+    }
+  });
+  board.appendChild(row);
+}
+
+function renderPlayers() {
+  const c = el("players"); c.innerHTML = "";
+  state.players.forEach((p, i) => {
+    const d = document.createElement("div");
+    d.className = "player" + (i === state.cur ? " active" : "");
+    d.innerHTML = `<div class="name">${p.name}</div>
+      <div class="round">${p.round}</div>
+      <div class="total">Gesamt: ${p.total}</div>`;
+    c.appendChild(d);
+  });
+}
+
+function renderKeys() {
+  const k = el("keys"); k.innerHTML = "";
+  const cons = [..."BCDFGHJKLMNPQRSTVWXYZ"];
+  // consonants only shown for spinning-guess; vowels via buy button. Show all as a reference grid.
+  cons.forEach(ch => k.appendChild(makeKey(ch, false)));
+}
+function makeKey(ch, vowel) {
+  const b = document.createElement("button");
+  b.className = "key" + (vowel ? " vowel" : "") + (state.guessed.has(ch) ? " used" : "");
+  b.textContent = ch;
+  b.dataset.letter = ch;
+  b.disabled = state.guessed.has(ch);
+  b.onclick = () => guessConsonant(ch);
+  // keys only active when a spin value is pending
+  if (!vowel && state.spinValue == null) { b.disabled = true; b.style.opacity = state.guessed.has(ch) ? "" : ".4"; }
+  return b;
+}
+
+function setStatus(msg, kind = "info") {
+  const s = el("status"); s.className = "status " + kind; s.innerHTML = msg;
+}
+
+//// ----- Glücksfee -----
+let bubbleTimer = null;
+function hostessSay(text, mood = "") {
+  const b = el("bubble"), h = el("hostess");
+  b.textContent = text; b.classList.remove("hide");
+  h.classList.remove("cheer", "sad");
+  if (mood) h.classList.add(mood);
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => {
+    b.classList.add("hide");
+    h.classList.remove("cheer", "sad");
+  }, mood === "cheer" ? 3500 : 4500);
+}
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+//// ----- Audio (Web Audio API, keine Dateien nötig) -----
+const Audio = (() => {
+  let ctx = null, sfxOn = true, musicOn = false, musicTimer = null;
+  const ensure = () => {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  };
+  // einzelner Ton mit weicher Hüllkurve
+  function tone(freq, dur, { type = "sine", gain = 0.18, when = 0, slideTo = null } = {}) {
+    if (!ctx) return;
+    const t = ctx.currentTime + when;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(ctx.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  function seq(notes, { type = "triangle", gain = 0.2, step = 0.12 } = {}) {
+    notes.forEach((f, i) => tone(f, step * 0.95, { type, gain, when: i * step }));
+  }
+  // Tonleiter-Frequenzen
+  const N = { C4:261.6,D4:293.7,E4:329.6,F4:349.2,G4:392,A4:440,B4:493.9,C5:523.3,D5:587.3,E5:659.3,G5:784,A5:880,C6:1046.5 };
+
+  const sfx = {
+    tick()      { if (sfxOn && ctx) tone(1200, 0.03, { type: "square", gain: 0.08 }); },
+    spinStart() { if (sfxOn) { ensure(); tone(180, 0.4, { type: "sawtooth", gain: 0.12, slideTo: 520 }); } },
+    correct()   { if (sfxOn) { ensure(); seq([N.C5, N.E5, N.G5, N.C6], { gain: 0.22, step: 0.1 }); } },
+    vowel()     { if (sfxOn) { ensure(); seq([N.G5, N.C6, N.E5], { type: "sine", gain: 0.2, step: 0.08 }); } },
+    wrong()     { if (sfxOn) { ensure(); tone(300, 0.45, { type: "sawtooth", gain: 0.2, slideTo: 90 }); } },
+    bankrupt()  { if (sfxOn) { ensure(); seq([N.E4, N.D4, N.C4], { type: "sawtooth", gain: 0.22, step: 0.18 }); tone(110,0.6,{type:"sawtooth",gain:0.15,when:0.5,slideTo:70}); } },
+    win()       { if (sfxOn) { ensure(); seq([N.C5,N.E5,N.G5,N.C6,N.G5,N.C6], { gain: 0.24, step: 0.13 }); } },
+  };
+
+  // sanfte Hintergrundmusik – fröhliche Schleife (Pentatonik)
+  const MELODY = [N.C5,N.E5,N.G5,N.A5,N.G5,N.E5,N.D5,N.E5, N.C5,N.D5,N.E5,N.G5,N.E5,N.D5,N.C5,N.D5];
+  let mi = 0;
+  function musicStep() {
+    if (!musicOn) return;
+    const f = MELODY[mi % MELODY.length];
+    tone(f, 0.42, { type: "triangle", gain: 0.05 });
+    tone(f / 2, 0.42, { type: "sine", gain: 0.035 });   // sanfter Bass
+    mi++;
+    musicTimer = setTimeout(musicStep, 360);
+  }
+
+  return {
+    sfx,
+    unlock() { ensure(); },
+    toggleSfx() { sfxOn = !sfxOn; if (sfxOn) { ensure(); sfx.vowel(); } return sfxOn; },
+    toggleMusic() {
+      musicOn = !musicOn;
+      if (musicOn) { ensure(); musicStep(); } else { clearTimeout(musicTimer); }
+      return musicOn;
+    },
+  };
+})();
+
+function updateControls() {
+  el("spinBtn").disabled = state.spinning || state.spinValue != null;
+  el("vowelBtn").disabled = state.spinning || state.spinValue != null || !canBuyVowel();
+  el("solveBtn").disabled = state.spinning;
+  el("hint").textContent = state.spinValue != null
+    ? `Du hast ${state.spinValue} gedreht — wähle einen Konsonanten!`
+    : "Drehen → Konsonant raten · oder Vokal kaufen · oder Lösen";
+}
+function canBuyVowel() {
+  if (state.players[state.cur].round < 250) return false;
+  return VOWELS.some(v => !state.guessed.has(v) && curPuzzle().text.includes(v));
+  // (allow buying any unguessed vowel really; this just enables when sensible)
+}
+
+//// ----- Wheel drawing -----
+const canvas = el("wheel"), ctx = canvas.getContext("2d");
+const N = SEGMENTS.length, SEG = (Math.PI * 2) / N, R = 300;
+function drawWheel(rot) {
+  ctx.clearRect(0,0,600,600);
+  ctx.save();
+  ctx.translate(300,300);
+  ctx.rotate(rot - Math.PI/2); // 0 at top
+  for (let i = 0; i < N; i++) {
+    const a0 = i * SEG, a1 = a0 + SEG;
+    const seg = SEGMENTS[i];
+    let color;
+    if (seg === "BANKROTT") color = "#111";
+    else if (seg === "AUSSETZEN") color = "#444";
+    else color = SEG_COLORS[i % SEG_COLORS.length];
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R,a0,a1); ctx.closePath();
+    ctx.fillStyle = color; ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 2; ctx.stroke();
+    // label
+    ctx.save();
+    ctx.rotate(a0 + SEG/2);
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.fillStyle = (seg === "BANKROTT" || seg === "AUSSETZEN") ? "#ffd54a" : "#fff";
+    ctx.font = `800 ${seg === "BANKROTT" || seg === "AUSSETZEN" ? 22 : 30}px Segoe UI, sans-serif`;
+    const label = seg === "BANKROTT" ? "PLEITE" : seg === "AUSSETZEN" ? "AUS" : String(seg);
+    ctx.fillText(label, R - 18, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+function segmentAtPointer(rot) {
+  // pointer at top; find segment index whose center we landed on
+  let a = (-rot) % (Math.PI*2); if (a < 0) a += Math.PI*2;
+  return Math.floor(a / SEG) % N;
+}
+
+//// ----- Spin -----
+function spin() {
+  if (state.spinning || state.spinValue != null) return;
+  state.spinning = true; updateControls();
+  const target = Math.floor(Math.random() * N);
+  const targetRot = -(target + 0.5) * SEG;           // lands center of target at pointer
+  const turns = 4 + Math.floor(Math.random() * 3);
+  const start = state.rotation;
+  // compute final rotation >= start with proper modulo alignment
+  let end = targetRot;
+  while (end < start + turns * Math.PI * 2) end += Math.PI * 2;
+  const dur = 4200, t0 = performance.now();
+  setStatus("Das Rad dreht sich…", "info");
+  hostessSay(pick(["Und es dreht sich… 🎡", "Drück die Daumen!", "Mal sehen, wo's stehen bleibt!"]));
+  Audio.sfx.spinStart();
+  let lastSeg = segmentAtPointer(state.rotation);
+  function frame(now) {
+    const p = Math.min((now - t0) / dur, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    state.rotation = start + (end - start) * ease;
+    drawWheel(state.rotation);
+    const s = segmentAtPointer(state.rotation);
+    if (s !== lastSeg) { lastSeg = s; Audio.sfx.tick(); }   // Ticken pro Segment, wird langsamer
+    if (p < 1) requestAnimationFrame(frame);
+    else finishSpin();
+  }
+  requestAnimationFrame(frame);
+}
+function finishSpin() {
+  state.spinning = false;
+  const idx = segmentAtPointer(state.rotation);
+  const seg = SEGMENTS[idx];
+  if (seg === "BANKROTT") {
+    state.players[state.cur].round = 0;
+    setStatus("💥 PLEITE! Runden-Punkte weg.", "bad");
+    hostessSay("Oh nein, Pleite! Das ist Pech. 😟", "sad");
+    Audio.sfx.bankrupt();
+    setTimeout(nextPlayer, 1400);
+  } else if (seg === "AUSSETZEN") {
+    setStatus("⏭️ Aussetzen — nächster ist dran.", "bad");
+    hostessSay("Schade, einmal aussetzen!", "sad");
+    Audio.sfx.wrong();
+    setTimeout(nextPlayer, 1400);
+  } else {
+    state.spinValue = seg;
+    setStatus(`Du hast <b>${seg}</b> gedreht — rate einen Konsonanten!`, "info");
+    hostessSay(`${seg} Punkte! Welcher Buchstabe? 🔤`);
+  }
+  render();
+}
+
+//// ----- Guessing -----
+function guessConsonant(ch) {
+  if (state.spinValue == null || state.guessed.has(ch) || isVowel(ch)) return;
+  state.guessed.add(ch);
+  const text = curPuzzle().text;
+  const count = [...text].filter(c => c === ch).length;
+  if (count > 0) {
+    state.revealed.add(ch);
+    const gain = state.spinValue * count;
+    state.players[state.cur].round += gain;
+    state.spinValue = null;
+    setStatus(`✅ ${count}× „${ch}" — +${gain} Punkte! Weiter drehen oder lösen.`, "good");
+    hostessSay(pick([`Super! ${count}× das ${ch}! 🎉`, "Klasse geraten!", "Toll gemacht! ⭐"]), "cheer");
+    Audio.sfx.correct();
+    if (allRevealed()) return solvedByReveal();
+  } else {
+    state.spinValue = null;
+    setStatus(`❌ Kein „${ch}". Nächster Spieler!`, "bad");
+    hostessSay(pick([`Kein ${ch}, leider. Nächster!`, "Knapp daneben!"]), "sad");
+    Audio.sfx.wrong();
+    setTimeout(nextPlayer, 1300);
+  }
+  render();
+}
+
+function buyVowel() {
+  if (state.spinValue != null || state.spinning) return;
+  const p = state.players[state.cur];
+  if (p.round < 250) { setStatus("Nicht genug Punkte für einen Vokal (250 nötig).", "bad"); return; }
+  // pick available vowel via prompt-free overlay: use a temporary key row
+  showVowelPicker();
+}
+function showVowelPicker() {
+  const k = el("keys"); k.innerHTML = "";
+  VOWELS.forEach(v => {
+    const b = makeKey(v, true);
+    b.disabled = state.guessed.has(v);
+    b.onclick = () => resolveVowel(v);
+    k.appendChild(b);
+  });
+  setStatus("Wähle einen Vokal (kostet 250).", "info");
+  el("spinBtn").disabled = true; el("vowelBtn").disabled = true;
+}
+function resolveVowel(v) {
+  if (state.guessed.has(v)) return;
+  const p = state.players[state.cur];
+  p.round -= 250;
+  state.guessed.add(v);
+  const text = curPuzzle().text;
+  const count = [...text].filter(c => c === v).length;
+  if (count > 0) {
+    state.revealed.add(v);
+    setStatus(`✅ ${count}× „${v}" aufgedeckt! Weiter drehen oder lösen.`, "good");
+    hostessSay(`Da ist ein ${v}! ✨`, "cheer");
+    Audio.sfx.vowel();
+    if (allRevealed()) return solvedByReveal();
+  } else {
+    setStatus(`❌ Kein „${v}". Du bleibst dran — weiter drehen oder lösen.`, "bad");
+    hostessSay(`Kein ${v} dabei – versuch's weiter!`);
+    Audio.sfx.wrong();
+  }
+  render();
+}
+
+function allRevealed() {
+  return [...curPuzzle().text].every(c => !isLetter(c) || state.revealed.has(c));
+}
+function solvedByReveal() {
+  setStatus("🎉 Komplett aufgedeckt!", "good");
+  render();
+  setTimeout(() => roundWon(state.cur), 800);
+}
+
+//// ----- Solve overlay -----
+function openSolve() {
+  el("solveInput").value = "";
+  el("solveOverlay").classList.add("show");
+  setTimeout(() => el("solveInput").focus(), 50);
+}
+function closeSolve() { el("solveOverlay").classList.remove("show"); }
+function confirmSolve() {
+  const guess = el("solveInput").value.trim().toUpperCase().replace(/\s+/g, " ");
+  const answer = curPuzzle().text.toUpperCase();
+  closeSolve();
+  if (guess === answer) {
+    // reveal everything
+    [...answer].forEach(c => { if (isLetter(c)) state.revealed.add(c); });
+    render();
+    roundWon(state.cur);
+  } else {
+    setStatus("❌ Falsch geraten! Nächster Spieler.", "bad");
+    hostessSay("Das war's leider nicht ganz!", "sad");
+    Audio.sfx.wrong();
+    setTimeout(nextPlayer, 1300);
+  }
+}
+
+//// ----- Turn / round flow -----
+function nextPlayer() {
+  state.spinValue = null;
+  state.cur = (state.cur + 1) % state.players.length;
+  setStatus(`<b>${state.players[state.cur].name}</b> ist dran — Drehen!`, "info");
+  hostessSay(`${state.players[state.cur].name}, du bist dran! 🎡`);
+  renderKeys(); render();
+}
+
+function roundWon(playerIdx) {
+  const p = state.players[playerIdx];
+  p.total += p.round;
+  hostessSay(`Bravo ${p.name}! Geschafft! 🎉🏆`, "cheer");
+  Audio.sfx.win();
+  const isLast = state.puzzleIdx >= Math.min(PUZZLES.length, 5) - 1; // 5 Runden pro Spiel
+  el("endTitle").textContent = isLast ? "🏆 Spiel vorbei!" : "Runde gelöst!";
+  if (isLast) {
+    const ranked = [...state.players].sort((a,b) => b.total - a.total);
+    el("endBody").innerHTML =
+      `<div class="winner">${ranked[0].name} gewinnt!</div>` +
+      ranked.map(r => `<div style="font-size:clamp(16px,2vw,26px)">${r.name}: <b style="color:var(--gold)">${r.total}</b></div>`).join("");
+    el("nextBtn").textContent = "Neues Spiel ▶";
+    el("nextBtn").onclick = () => { el("endOverlay").classList.remove("show"); newGame(); };
+  } else {
+    el("endBody").innerHTML =
+      `<div style="font-size:clamp(18px,2.4vw,30px)">${p.name} holt sich <b style="color:var(--gold)">${p.round}</b> Punkte!</div>` +
+      `<div style="margin-top:1.5vh;color:var(--muted)">Lösung: <b>${curPuzzle().text}</b></div>`;
+    el("nextBtn").textContent = "Nächste Runde ▶";
+    el("nextBtn").onclick = () => {
+      el("endOverlay").classList.remove("show");
+      state.puzzleIdx++;
+      loadPuzzle(); render();
+      setStatus(`Neue Runde! <b>${state.players[0].name}</b> beginnt.`, "info");
+    };
+  }
+  el("endOverlay").classList.add("show");
+}
+
+//// ----- Wire up -----
+el("spinBtn").onclick = () => { Audio.unlock(); spin(); };
+el("vowelBtn").onclick = buyVowel;
+el("solveBtn").onclick = openSolve;
+el("sfxBtn").onclick = () => { const on = Audio.toggleSfx(); el("sfxBtn").classList.toggle("off", !on); el("sfxBtn").textContent = on ? "🔊 Sound" : "🔇 Sound"; };
+el("musicBtn").onclick = () => { const on = Audio.toggleMusic(); el("musicBtn").classList.toggle("off", !on); el("musicBtn").textContent = on ? "🎵 Musik" : "🎵 Musik aus"; };
+el("solveConfirm").onclick = confirmSolve;
+el("solveCancel").onclick = closeSolve;
+el("solveInput").addEventListener("keydown", e => { if (e.key === "Enter") confirmSolve(); });
+document.addEventListener("keydown", e => {
+  if (el("solveOverlay").classList.contains("show")) return;
+  const ch = e.key.toUpperCase();
+  if (state.spinValue != null && /^[BCDFGHJKLMNPQRSTVWXYZ]$/.test(ch)) guessConsonant(ch);
+  else if (e.key === " ") { e.preventDefault(); if (!el("spinBtn").disabled) spin(); }
+});
+
+newGame();
+drawWheel(0);
+</script>
+</body>
+</html>
