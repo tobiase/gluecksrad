@@ -27,8 +27,12 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 ### P3 – nett, aber Risiko / zuletzt
 9. [x] **Fee fliegt zum Buchstaben** und deckt ihn auf – als magischer Funke vom Zauberstab zur Kachel (~0,4 s, nicht-blockierend). Die ganze Figur quer zu teleportieren wurde bewusst vermieden (Risiko hässlich). Literal-Variante (ganze Fee fliegt) bei Bedarf nachrüstbar.
 
+### P1 – neue Wünsche (Runde 2)
+10. [ ] **Computer-Gegner:** Spieler als „Computer" markierbar, spielt automatisch – so kann man auch alleine spielen.
+11. [x] **Pools vergrößern:** deutlich mehr Rätsel (leicht 52 / schwer 75), Schwer-Pool mit Filmen, Redewendungen, Sprichwörtern, Städten, Personen u. v. m.
+12. [ ] **Tusch & Applaus:** festliche Sounds beim Lösen / Spielsieg.
+
 ## Weitere Ideen (Parkplatz)
 - Lautstärke-Regler statt nur an/aus
-- Tusch / Applaus beim Spielsieg
 - Emojis/Bilder zur Kategorie als Lesehilfe für Kinder
 - Eigene Rätsel zur Laufzeit hinzufügen
