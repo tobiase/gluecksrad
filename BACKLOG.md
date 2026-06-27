@@ -25,7 +25,7 @@ Reihenfolge = Priorität. Jedes Feature kommt in einen eigenen Commit.
 8. [x] **Sound-Ducking:** Hintergrundmusik wird leiser, während ein Geräusch spielt.
 
 ### P3 – nett, aber Risiko / zuletzt
-9. [ ] **Fee fliegt zum Buchstaben** und deckt ihn auf – muss **super schnell** sein, darf das Tempo nicht bremsen. Hohes Risiko, schlecht auszusehen → **ganz zuletzt**.
+9. [x] **Fee fliegt zum Buchstaben** und deckt ihn auf – als magischer Funke vom Zauberstab zur Kachel (~0,4 s, nicht-blockierend). Die ganze Figur quer zu teleportieren wurde bewusst vermieden (Risiko hässlich). Literal-Variante (ganze Fee fliegt) bei Bedarf nachrüstbar.
 
 ## Weitere Ideen (Parkplatz)
 - Lautstärke-Regler statt nur an/aus

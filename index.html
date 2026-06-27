@@ -70,6 +70,10 @@
   .tile.hidden { background: #eef2ff; border-color: #cdd6f4; }
   .tile.revealed { background: #fff; color: #0b1020; animation: pop .25s ease; }
   @keyframes pop { from { transform: scale(.6); } to { transform: scale(1); } }
+  .tile.zap { animation: zap .4s ease; }
+  @keyframes zap { 0% { box-shadow: 0 0 0 rgba(255,213,74,0); } 45% { box-shadow: 0 0 20px 7px rgba(255,213,74,.9); } 100% { box-shadow: 0 0 0 rgba(255,213,74,0); } }
+  .sparkle { position: fixed; z-index: 40; pointer-events: none; font-size: clamp(18px,2.2vw,32px);
+    transition: transform .4s cubic-bezier(.3,.7,.3,1), opacity .4s ease; will-change: transform, opacity; }
 
   /* Players */
   .players { display: flex; gap: 1.4vw; justify-content: center; padding: .6vh 0 .8vh; padding-left: clamp(150px, 15vw, 240px); }
@@ -663,6 +667,7 @@ function giveTip() {
   const L = pick(hidden);
   state.revealed.add(L);
   state.guessed.add(L);     // auf der Tastatur als benutzt markieren
+  fxSparkleToLetter(L);
   state.helpUsed = true;
   setStatus(`🎁 Geschenkt: ein „${L}"! Mach weiter.`, "good");
   hostessSay(`Hier, ein „${L}" für dich! ✨`, "cheer");
@@ -771,6 +776,7 @@ function guessConsonant(ch) {
   const count = [...text].filter(c => c === ch).length;
   if (count > 0) {
     state.revealed.add(ch);
+    fxSparkleToLetter(ch);
     const gain = state.spinValue * count;
     state.players[state.cur].round += gain;
     state.spinValue = null;
@@ -815,6 +821,7 @@ function resolveVowel(v) {
   const count = [...text].filter(c => c === v).length;
   if (count > 0) {
     state.revealed.add(v);
+    fxSparkleToLetter(v);
     setStatus(`✅ ${count}× „${v}" aufgedeckt! Weiter drehen oder lösen.`, "good");
     hostessSay(`Da ist ein ${v}! ✨`, "cheer");
     Audio.sfx.vowel();
@@ -825,6 +832,31 @@ function resolveVowel(v) {
     Audio.sfx.wrong();
   }
   render();
+}
+
+// Magie-Funke fliegt vom Zauberstab der Fee zum frisch aufgedeckten Buchstaben (schnell, dekorativ)
+function fxSparkleToLetter(ch) {
+  setTimeout(() => {   // nach dem render() dieses Ticks; feuert auch im Hintergrund-Tab
+    const fee = el("hostess").getBoundingClientRect();
+    const tiles = [...document.querySelectorAll("#board .tile.revealed")].filter(t => t.textContent === ch);
+    if (!tiles.length) return;
+    const sx = fee.left + fee.width * 0.92, sy = fee.top + fee.height * 0.12; // ~Zauberstabspitze
+    tiles.slice(0, 6).forEach((tile, i) => {
+      const r = tile.getBoundingClientRect();
+      const s = document.createElement("div");
+      s.className = "sparkle"; s.textContent = "✨";
+      s.style.left = sx + "px"; s.style.top = sy + "px";
+      document.body.appendChild(s);
+      setTimeout(() => {   // kurze Pause für den Reflow, dann fliegen
+        s.style.transitionDelay = (i * 0.04) + "s";
+        s.style.transform = `translate(${r.left + r.width / 2 - sx}px, ${r.top + r.height / 2 - sy}px) scale(1.5)`;
+        s.style.opacity = "0";
+      }, 20);
+      setTimeout(() => s.remove(), 720 + i * 40);
+      setTimeout(() => tile.classList.add("zap"), 360 + i * 40);
+      setTimeout(() => tile.classList.remove("zap"), 800 + i * 40);
+    });
+  }, 0);
 }
 
 function allRevealed() {
