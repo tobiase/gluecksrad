@@ -970,8 +970,18 @@ function showVowelPicker() {
     b.onclick = () => resolveVowel(v);
     k.appendChild(b);
   });
-  setStatus("Wähle einen Vokal (kostet 250).", "info");
+  // Abbrechen-Knopf: zurück zur normalen Ansicht, ohne Punktabzug
+  const back = document.createElement("button");
+  back.className = "key"; back.textContent = "↩︎"; back.title = "Zurück (kein Kauf)";
+  back.style.width = "auto"; back.style.padding = "0 12px";
+  back.onclick = cancelVowel;
+  k.appendChild(back);
+  setStatus("Wähle einen Vokal (kostet 250) – oder ↩︎ Zurück.", "info");
   el("spinBtn").disabled = true; el("vowelBtn").disabled = true;
+}
+function cancelVowel() {
+  setStatus(`<b>${state.players[state.cur].name}</b> ist dran – drehen, Vokal kaufen oder lösen.`, "info");
+  render();   // baut normale Konsonanten-Tastatur + Buttons wieder auf
 }
 function resolveVowel(v) {
   if (state.guessed.has(v)) return;
