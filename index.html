@@ -600,6 +600,7 @@ function newGame() {
   loadPuzzle();
   render();
   const names = state.players.map(p => p.name);
+  setStatus(`<b>${names[0]}</b> beginnt – drück Drehen! 🎡`, "info");   // frische Statuszeile (nicht die alte aus der Vorrunde)
   hostessSay(`Willkommen ${names.join(", ")}! ${names[0]} beginnt – dreh das Rad! 🎡`);
   scheduleCpu(1400);
 }
