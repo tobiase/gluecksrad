@@ -320,6 +320,7 @@
         <div class="btnRow">
           <button id="spinBtn">🎡 Drehen</button>
           <button id="vowelBtn" class="secondary">🔤 Vokal<span class="optWord"> kaufen</span> (250)</button>
+          <button id="passBtn" class="secondary" style="display:none">⏭️ Weiter</button>
           <button id="solveBtn" class="secondary">💡 Lösen</button>
           <button id="tipBtn" class="tipBtn">🧒 Tipp</button>
         </div>
@@ -612,6 +613,7 @@ function loadPuzzle() {
   state.players.forEach(p => p.round = 0);
   state.cur = 0;
   state.helpUsed = false;
+  state.passStreak = 0;
 }
 
 //// ----- Rendering -----
@@ -797,15 +799,21 @@ const Audio = (() => {
 
 function updateControls() {
   const cpu = isCpuTurn();
-  el("spinBtn").disabled = cpu || state.spinning || state.spinValue != null;
+  const deadEnd = onlyVowelsLeft();              // nur noch Vokale -> drehen sinnlos
+  const showPass = deadEnd && !canBuyVowel();     // echte Sackgasse: auch kein Vokal kaufbar
+  el("spinBtn").disabled = cpu || state.spinning || state.spinValue != null || deadEnd;
+  el("vowelBtn").style.display = showPass ? "none" : "";
+  el("passBtn").style.display = showPass ? "" : "none";
   el("vowelBtn").disabled = cpu || state.spinning || state.spinValue != null || !canBuyVowel();
+  el("passBtn").disabled = cpu || state.spinning;
   el("solveBtn").disabled = cpu || state.spinning;
   el("keys").style.pointerEvents = cpu ? "none" : "auto";
   const showTip = isChildTurn() && !state.helpUsed && !state.spinning;
   el("tipBtn").classList.toggle("show", showTip);
-  el("hint").textContent = state.spinValue != null
-    ? `Du hast ${state.spinValue} gedreht — wähle einen Konsonanten!`
-    : "Drehen → Konsonant raten · oder Vokal kaufen · oder Lösen";
+  el("hint").textContent = deadEnd
+    ? (showPass ? "Sackgasse – drück Weiter oder Lösen!" : "Nur noch Vokale übrig – kauf einen Vokal oder Lösen!")
+    : (state.spinValue != null ? `Du hast ${state.spinValue} gedreht — wähle einen Konsonanten!`
+                               : "Drehen → Konsonant raten · oder Vokal kaufen · oder Lösen");
 }
 function isChildTurn() {
   return kidMode && state.players[state.cur] && state.players[state.cur].isChild;
@@ -826,6 +834,7 @@ function giveTip() {
   const L = pick(hidden);
   state.revealed.add(L);
   state.guessed.add(L);     // auf der Tastatur als benutzt markieren
+  state.passStreak = 0;     // Fortschritt -> Pass-Serie zurücksetzen
   fxSparkleToLetter(L);
   state.helpUsed = true;
   setStatus(`🎁 Geschenkt: ein „${L}"! Mach weiter.`, "good");
@@ -837,7 +846,11 @@ function giveTip() {
 function canBuyVowel() {
   if (state.players[state.cur].round < 250) return false;
   return VOWELS.some(v => !state.guessed.has(v) && curPuzzle().text.includes(v));
-  // (allow buying any unguessed vowel really; this just enables when sensible)
+}
+function onlyVowelsLeft() {
+  // Alle noch versteckten Buchstaben sind Vokale -> kein Konsonant kann mehr helfen, Drehen sinnlos
+  const hidden = [...new Set([...curPuzzle().text].filter(c => isLetter(c) && !state.revealed.has(c)))];
+  return hidden.length > 0 && hidden.every(isVowel);
 }
 
 //// ----- Wheel drawing -----
@@ -936,6 +949,7 @@ function guessConsonant(ch) {
   const count = [...text].filter(c => c === ch).length;
   if (count > 0) {
     state.revealed.add(ch);
+    state.passStreak = 0;   // Fortschritt -> Pass-Serie zurücksetzen
     fxSparkleToLetter(ch);
     const gain = state.spinValue * count;
     state.players[state.cur].round += gain;
@@ -992,6 +1006,7 @@ function resolveVowel(v) {
   const count = [...text].filter(c => c === v).length;
   if (count > 0) {
     state.revealed.add(v);
+    state.passStreak = 0;   // Fortschritt -> Pass-Serie zurücksetzen
     fxSparkleToLetter(v);
     setStatus(`✅ ${count}× „${v}" aufgedeckt! Weiter drehen oder lösen.`, "good");
     hostessSay(`Da ist ein ${v}! ✨`, "cheer");
@@ -1076,6 +1091,24 @@ function nextPlayer() {
   renderKeys(); render();
   scheduleCpu();
 }
+function passTurn() {
+  if (state.spinning || state.spinValue != null) return;
+  state.passStreak = (state.passStreak || 0) + 1;
+  if (state.passStreak >= state.players.length) { abortRound(); return; }  // alle haben gepasst
+  nextPlayer();
+}
+function abortRound() {
+  [...curPuzzle().text].forEach(c => { if (isLetter(c)) state.revealed.add(c); });  // Lösung zeigen
+  state.passStreak = 0;
+  render();
+  Audio.sfx.wrong();
+  hostessSay("Diese Runde war zu knifflig – niemand hat gelöst!", "sad");
+  const isLast = state.puzzleIdx >= state.deck.length - 1;
+  if (isLast) { showGameOver(); return; }
+  state.pending = "abort";
+  persist();
+  showRoundResult(true);
+}
 
 //// ----- Computer-Gegner -----
 let cpuTimer = null;
@@ -1090,6 +1123,7 @@ function cpuStep() {
   if (!isCpuTurn() || state.spinning) return;
   if (el("endOverlay").classList.contains("show") || el("startOverlay").classList.contains("show")) return;
   if (state.spinValue != null) { cpuGuessConsonant(); return; }   // Konsonant raten
+  if (onlyVowelsLeft()) { cpuSolve(); return; }                   // Sackgasse -> Computer löst
   if (cpuShouldSolve()) { cpuSolve(); return; }
   if (cpuShouldBuyVowel()) { cpuBuyVowel(); return; }
   spin();   // finishSpin plant den nächsten Schritt
@@ -1165,11 +1199,13 @@ function endGameNow() {
   hostessSay("Das war's für heute – tolles Spiel! 🏆", "cheer");
   showGameOver("🏁 Spiel beendet!");
 }
-function showRoundResult() {
+function showRoundResult(aborted) {
   const p = state.players[state.cur];
-  el("endTitle").textContent = "Runde gelöst!";
+  el("endTitle").textContent = aborted ? "Niemand gelöst" : "Runde gelöst!";
   el("endBody").innerHTML =
-    `<div style="font-size:clamp(18px,2.4vw,30px)">${p.name} holt sich <b style="color:var(--gold)">${p.round}</b> Punkte!</div>` +
+    (aborted
+      ? `<div style="font-size:clamp(18px,2.4vw,30px)">Diese Runde konnte niemand lösen.</div>`
+      : `<div style="font-size:clamp(18px,2.4vw,30px)">${p.name} holt sich <b style="color:var(--gold)">${p.round}</b> Punkte!</div>`) +
     `<div style="margin-top:1.5vh;color:var(--muted)">Lösung: <b>${curPuzzle().text}</b></div>`;
   el("nextBtn").textContent = "Nächste Runde ▶";
   el("nextBtn").onclick = () => {
@@ -1252,7 +1288,7 @@ function persist() {
       players: state.players, cur: state.cur, deck: state.deck, puzzleIdx: state.puzzleIdx,
       revealed: [...state.revealed], guessed: [...state.guessed],
       spinValue: state.spinValue, rotation: state.rotation, kidMode,
-      pending: state.pending || null, helpUsed: !!state.helpUsed,
+      pending: state.pending || null, helpUsed: !!state.helpUsed, passStreak: state.passStreak || 0,
     }));
   } catch (e) {}
 }
@@ -1275,11 +1311,12 @@ function restoreState(s) {
     players: s.players, cur: s.cur, deck: s.deck, puzzleIdx: s.puzzleIdx,
     revealed: new Set(s.revealed), guessed: new Set(s.guessed),
     spinValue: s.spinValue, spinning: false, rotation: s.rotation || 0,
-    pending: s.pending || null, helpUsed: !!s.helpUsed,
+    pending: s.pending || null, helpUsed: !!s.helpUsed, passStreak: s.passStreak || 0,
   };
   drawWheel(state.rotation);
   render();
-  if (state.pending === "round") { showRoundResult(); return; }
+  if (state.pending === "round") { showRoundResult(false); return; }
+  if (state.pending === "abort") { showRoundResult(true); return; }
   setStatus(`Weiter geht's – <b>${state.players[state.cur].name}</b> ist dran!`, "info");
   scheduleCpu(1400);
 }
@@ -1305,6 +1342,7 @@ el("addPlayer").onclick = addPlayer;
 el("startGame").onclick = startGame;
 el("spinBtn").onclick = () => { Audio.unlock(); spin(); };
 el("vowelBtn").onclick = buyVowel;
+el("passBtn").onclick = passTurn;
 el("solveBtn").onclick = openSolve;
 el("tipBtn").onclick = giveTip;
 el("sfxBtn").onclick = () => { const on = Audio.toggleSfx(); el("sfxBtn").classList.toggle("off", !on); el("sfxBtn").textContent = on ? "🔊 Sound" : "🔇 Sound"; };
